@@ -1,4 +1,4 @@
-# Benevolent
+# Benevolent - PLEASE NOTE THAT THESE CODES ARE IN PROGRESS AS WE ARE CURRENTLY PARTICIPATING IN THE CHAINLINK HACKATHON. 
 Benevolent Moon Gaming and Finance 
 A team of creators with common values has galvanized from across the globe to bring the greater community innovative products that are mission-driven and community-centric in a decentralized, permissionless, trustless, smart contract catalyzed manner. 
 
