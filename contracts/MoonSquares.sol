@@ -97,7 +97,9 @@ contract MoonSquares is KeeperCompatibleInterface, Ownable, ReentrancyGuard {
         //Dai.transferFrom(msg.sender, address(this), amount);
         //update the betsPlaced mapping
         roundAddressBetsPlaced[coinRound][msg.sender].squareStartTime = _start;
-        roundAddressBetsPlaced[coinRound][msg.sender].squareEndTime = roundAddressBetsPlaced[coinRound][msg.sender].squareStartTime + duration;
+        roundAddressBetsPlaced[coinRound][msg.sender].squareEndTime 
+        = 
+        roundAddressBetsPlaced[coinRound][msg.sender].squareStartTime + duration;
         //update all the relevant arrays
         roundPlayerArray[coinRound].push(msg.sender);
         roundStartTimeArray[coinRound].push(_start);
