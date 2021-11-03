@@ -10,9 +10,7 @@ import '@openzeppelin/contracts/access/Ownable.sol';
 contract DailyRocket is Ownable, KeeperCompatibleInterface {
 
     //preferably should use the http get to get the actual close price of an asset rather than aggregator
-    //to confirm during the hakathon
-    
-    
+    //to confirm during testing phase
 
     uint128 dayCount;//Kepps track of the days
     
@@ -77,6 +75,8 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
     mapping(uint128 => bytes8) monthVoteResults;
     
     mapping(uint128 => uint256) public monthCharityAmount;
+
+    mapping(uint128 => mapping(IERC20 => uint256)) monthTokenCharityAmount;
 
 
     constructor(IERC20 _dai, IERC20 _ust){
@@ -231,14 +231,12 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
     }
     
     function withdrawCharityFromIba() internal {
-        for (uint128 i = 0; i < predictableAssets.length; i++) {
-            for (uint p = 0; p < AcceptedTokens.length; p++) {
-                IERC20(AcceptedTokens[p]).transferFrom(
-                    IBA,
-                    address(this),
-                    (monthCharityAmount[monthCount]) //Hence should be done before the month count gets updated
-                );
-            }
+        for (uint p = 0; p < AcceptedTokens.length; p++) {
+            IERC20(AcceptedTokens[p]).transferFrom(
+                IBA,
+                address(this),
+                (monthTokenCharityAmount[monthCount][AcceptedTokens[p]]) //Hence should be done before the month count gets updated
+            );
         }
         
     }
