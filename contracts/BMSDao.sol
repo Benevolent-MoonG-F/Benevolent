@@ -15,6 +15,6 @@ contract BMSDao {
     // Gov Proposals are voted on for 5 days
     // Need a requiste number of votes to pass/ register as a process??
     // 2 day timelock for implementation of proposal if passed. 
-
+    // See Comments extended description for all DAO activities
 }
 
