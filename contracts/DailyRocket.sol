@@ -12,7 +12,7 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
     //preferably should use the http get to get the actual close price of an asset rather than aggregator
     //to confirm during testing phase
 
-    uint128 dayCount;//Kepps track of the days
+    uint128 dayCount;//Keeps track of the days
     
     uint128 monthCount;
 
@@ -32,16 +32,16 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
     mapping(uint256 => mapping(bytes8 => mapping(IERC20 => uint256))) public dayAssetTokenAmount;
     
 
-    mapping(uint256 => mapping(bytes8 => uint256)) public dayAssetTotalAmoint;
+    mapping(uint256 => mapping(bytes8 => uint256)) public dayAssetTotalAmount;
 
 
     mapping(uint256 => mapping(bytes8 => uint256)) public dayAssetNoOfWinners;
     
 
-    mapping(uint256 => mapping(bytes8 => uint256)) public dayAssetDaiAmointPerWinner;
+    mapping(uint256 => mapping(bytes8 => uint256)) public dayAssetDaiAmountPerWinner;
 
 
-    mapping(uint256 => mapping(bytes8 => uint256)) public dayAssetUstAmointPerWinner;
+    mapping(uint256 => mapping(bytes8 => uint256)) public dayAssetUstAmountPerWinner;
     
 
     mapping(uint256 => mapping(bytes8 => uint256[])) public dayAssetPrediction;
@@ -111,7 +111,7 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
         uint256 amount = 10 * 10**18;//the amount we set for the daily close
         require(AssetIsAccepted(_asset));//confirm the selected is an allowed asset
         require(tokenIsAccepted(AcceptedTokens[_token]), 'Token is currently not allowed.');//checks if the ERC20 token is allowed by the protocal
-        // remember to add aprovefunction on ERC20 token
+        // remember to add approveFunction on ERC20 token
         IERC20(AcceptedTokens[_token]).approve(address(this), amount);
         IERC20(AcceptedTokens[_token]).transferFrom(msg.sender, address(this), amount);//The transfer function on the ERC20 token
         dayAssetTokenAmount[dayCount][_asset][AcceptedTokens[_token]] += amount;
@@ -220,7 +220,7 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
         
     }
     
-    //sends non winnings to an interest bearibg account 
+    //sends non winnings to an interest bearing account 
     function sendToIba() public onlyOwner {
         require(getTime() > dayCloseTime[dayCount -1] + 64800 seconds);
         for (uint128 i = 0; i < predictableAssets.length; i++) {
@@ -244,7 +244,7 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
     /*
         Remaining:
             Tracking IBA returns & Protocal money
-            Transfrering Protocal Money from IBA
+            Transferring Protocal Money from IBA
     */
     
     
