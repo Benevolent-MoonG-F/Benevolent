@@ -1,6 +1,12 @@
 //SPDX-License-Identifier: MIT
 
 pragma solidity ^0.8.7;
+//import "@openzeppelin/contracts/governance/Governor.sol";
+//import "@openzeppelin/contracts/governance/extensions/GovernorVotes.sol";
+//import "@openzeppelin/contracts/governance/extensions/GovernorVotesQuorumFraction.sol";
+//import "@openzeppelin/contracts/governance/extensions/GovernorTimelockControl.sol";
+// import "@openzeppelin/contracts/governance/TimelockController.sol";
+//Above contracts need to be fir to BMGF terminology
 
 //import '@openzeppelin/contracts/
 contract BMSDao {
