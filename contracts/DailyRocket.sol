@@ -1,11 +1,13 @@
 //SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.7;
+pragma solidity ^0.8.0;
 
 import "@chainlink/contracts/src/v0.8/interfaces/KeeperCompatibleInterface.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import '@openzeppelin/contracts/access/Ownable.sol';
+
+
 
 contract DailyRocket is Ownable, KeeperCompatibleInterface {
 
@@ -78,6 +80,8 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
 
     mapping(uint128 => mapping(IERC20 => uint256)) monthTokenCharityAmount;
 
+    mapping (uint128 => uint256) monthInterestEarned;
+
 
     constructor(IERC20 _dai, IERC20 _ust){
         AcceptedTokens.push(_dai);
@@ -107,7 +111,7 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
     }
 
     function predictClosePrice(bytes8 _asset, uint256 _prediction, uint256 _token, bytes8 _charity) public {
-        require(getTime() <= dayCloseTime[dayCount -1] + 64800 seconds);
+        require(getTime() <= dayCloseTime[dayCount -1] + 64800 seconds);//After this time, one cannot
         uint256 amount = 10 * 10**18;//the amount we set for the daily close
         require(AssetIsAccepted(_asset));//confirm the selected is an allowed asset
         require(tokenIsAccepted(AcceptedTokens[_token]), 'Token is currently not allowed.');//checks if the ERC20 token is allowed by the protocal
@@ -121,13 +125,14 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
         dayAssetPrediction[dayCount][_asset].push(_prediction);
         //add the sender to the predictors array
         dayAssetPredictors[dayCount][_asset].push(msg.sender);
-        voteForCharity(_charity);
+        //voteForCharity(_charity);
         monthCharityAmount[monthCount] += (amount * 7/100);
+        voteForCharity(_charity);
 
         emit Predicted(msg.sender, _prediction, _charity);
     }
 
-    function setNumberOfWinners() public {
+    function setNumberOfWinners() private {
         uint128 day = dayCount;
         for (uint8 i = 0; i < predictableAssets.length; i++) {
             require(
@@ -216,37 +221,38 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
     }
 
     
-    function sendToCharity() public onlyOwner {
-        
-    }
-    
     //sends non winnings to an interest bearibg account 
-    function sendToIba() public onlyOwner {
+    function sendToIba() external onlyOwner returns (bytes memory) {
         require(getTime() > dayCloseTime[dayCount -1] + 64800 seconds);
         for (uint128 i = 0; i < predictableAssets.length; i++) {
             for (uint p = 0; p < AcceptedTokens.length; p++) {
-                IERC20(AcceptedTokens[p]).transfer(IBA, (dayAssetTokenAmount[dayCount][predictableAssets[i]][AcceptedTokens[p]]) * 10/100);
+                bytes memory payload =abi.encodeWithSignature("deposit(address, uint, address, uint)", AcceptedTokens[p], ((dayAssetTokenAmount[dayCount][predictableAssets[i]][AcceptedTokens[p]]) * 10/100), address(this), 0);
+                (bool success, bytes memory returnData) = address(IBA).call(payload);
+                require(success);
+                //IERC20(AcceptedTokens[p]).transfer(IBA, (dayAssetTokenAmount[dayCount][predictableAssets[i]][AcceptedTokens[p]]) * 10/100);
+                return returnData;
             }
         }
     }
     
+    /*
     function withdrawCharityFromIba() internal {
         for (uint p = 0; p < AcceptedTokens.length; p++) {
-            IERC20(AcceptedTokens[p]).transferFrom(
+            /*IERC20(AcceptedTokens[p]).transferFrom(
                 IBA,
                 address(this),
                 (monthTokenCharityAmount[monthCount][AcceptedTokens[p]]) //Hence should be done before the month count gets updated
             );
         }
         
-    }
+    } */
 
     /*
         Remaining:
             Tracking IBA returns & Protocal money
             Transfrering Protocal Money from IBA
     */
-    
+
     
 }
 

@@ -6,11 +6,14 @@ reports:
 dependencies:
   - smartcontractkit/chainlink-brownie-contracts@0.2.1
   - OpenZeppelin/openzeppelin-contracts@4.2.0
+  - superfluid-finance/protocol-monorepo@0.1.2
+
 compiler:
   solc:
     remappings:
       - '@chainlink=smartcontractkit/chainlink-brownie-contracts@0.2.1'
       - '@openzeppelin=OpenZeppelin/openzeppelin-contracts@4.2.0'
+      - '@superfluid=superfluid-finance/protocol-monorepo@0.1.2'
 # automatically fetch contract sources from Etherscan
 autofetch_sources: True
 # Uncomment to use the .env file
