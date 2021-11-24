@@ -26,24 +26,18 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
     mapping(uint256 => uint256) dayCloseTime; //Closing Time per asset
     
     address constant IBA = 0x5B38Da6a701c568545dCfcB03FcB875f56beddC4;
+    address Dai;
+    address QuickSwap;
+    address moonSquare;
     
 
     uint256 public contractStartTime; //The contract should start at 0000.00 hours
 
-    
-    mapping(uint256 => mapping(bytes8 => mapping(IERC20 => uint256))) public dayAssetTokenAmount;
-    
 
     mapping(uint256 => mapping(bytes8 => uint256)) public dayAssetTotalAmount;
 
 
     mapping(uint256 => mapping(bytes8 => uint256)) public dayAssetNoOfWinners;
-    
-
-    mapping(uint256 => mapping(bytes8 => uint256)) public dayAssetDaiAmountPerWinner;
-
-
-    mapping(uint256 => mapping(bytes8 => uint256)) public dayAssetUstAmountPerWinner;
     
 
     mapping(uint256 => mapping(bytes8 => uint256[])) public dayAssetPrediction;
@@ -52,7 +46,7 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
     mapping(uint256 => mapping(bytes8 => address[])) public dayAssetPredictors;
 
 
-    event Predicted(address indexed _placer, uint256 _prediction, bytes8 indexed _charity);
+    event Predicted(address indexed _placer, uint256 _prediction);
     
     struct Charity {
         bytes8 name;
@@ -71,14 +65,7 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
     
     bytes8[] charities;
     address[] charityAddress;
-    
-    mapping(uint128 => mapping(bytes8 => uint128)) public monthCharityVotes;
-    
-    mapping(uint128 => bytes8) monthVoteResults;
-    
-    mapping(uint128 => uint256) public monthCharityAmount;
 
-    mapping(uint128 => mapping(IERC20 => uint256)) monthTokenCharityAmount;
 
     mapping (uint128 => uint256) monthInterestEarned;
 
@@ -102,37 +89,38 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
         predictableAssets.push(_asset);
         assetPriceAggregators.push(_aggregator);
     }
-    
-    function addCharity(bytes8 _charityName, address _charityAddress, bytes32 _link) public onlyOwner{
-        presentCharities[_charityAddress].name = _charityName;
-        presentCharities[_charityAddress].link = _link;
-        charities.push(_charityName);
-        charityAddress.push(_charityAddress);
-    }
 
-    function predictClosePrice(bytes8 _asset, uint256 _prediction, uint256 _token, bytes8 _charity) public {
+    function predictClosePrice(bytes8 _asset, uint256 _prediction, uint256 _token, /*bytes8 _charity,*/ address[] calldata swapPairs) public {
         require(getTime() <= dayCloseTime[dayCount -1] + 64800 seconds);//After this time, one cannot
         uint256 amount = 10 * 10**18;//the amount we set for the daily close
         require(AssetIsAccepted(_asset));//confirm the selected is an allowed asset
         require(tokenIsAccepted(AcceptedTokens[_token]), 'Token is currently not allowed.');//checks if the ERC20 token is allowed by the protocal
         // remember to add approveFunction on ERC20 token
         IERC20(AcceptedTokens[_token]).approve(address(this), amount);
-        IERC20(AcceptedTokens[_token]).transferFrom(msg.sender, address(this), amount);//The transfer function on the ERC20 token
-        dayAssetTokenAmount[dayCount][_asset][AcceptedTokens[_token]] += amount;
+        address(QuickSwap).call(
+            abi.encodeWithSignature(
+                "swapTokensForExactTokens(uint, uint, address[], address, uint)",
+                amount,//amount out
+                amount,//amount in
+                swapPairs, //pairs geting swaped
+                msg.sender, 
+                1
+            )
+        );
+        IERC20(Dai).approve(address(this), amount);
+        IERC20(Dai).transferFrom(msg.sender, address(this), amount);//The transfer function on the ERC20 token
+        dayAssetTotalAmount[dayCount][_asset] += amount;
         //Updates The prediction mapping
         dayAssetUserPrediction[dayCount][_asset][msg.sender] = _prediction;
         //adds to the list of predictions
         dayAssetPrediction[dayCount][_asset].push(_prediction);
         //add the sender to the predictors array
         dayAssetPredictors[dayCount][_asset].push(msg.sender);
-        //voteForCharity(_charity);
-        monthCharityAmount[monthCount] += (amount * 7/100);
-        voteForCharity(_charity);
 
-        emit Predicted(msg.sender, _prediction, _charity);
+        emit Predicted(msg.sender, _prediction);
     }
 
-    function setNumberOfWinners() private {
+    function setNumberOfWinners() private returns (bytes memory) {
         uint128 day = dayCount;
         for (uint8 i = 0; i < predictableAssets.length; i++) {
             require(
@@ -144,6 +132,10 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
                 require(dayAssetPrediction[day][predictableAssets[i]][p] == dayAssetClosePrice[day][predictableAssets[i]]);
                 dailyAssetWinners[day][predictableAssets[i]].push(dayAssetPredictors[day][predictableAssets[i]][p]);
                 dayAssetNoOfWinners[day][predictableAssets[i]] +=1;
+                bytes memory payload =abi.encodeWithSignature("addToWinners(address)", dayAssetPredictors[day][predictableAssets[i]][p]);
+                (bool success, bytes memory returnData) = address(IBA).call(payload);
+                require(success);
+                return returnData;
             }
         }
     }
@@ -178,17 +170,23 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
                 return true;
             }
         }
-        return false; 
+        return false;
     }
 
     function claimWinnings(uint128 _day, bytes8 _asset) public {
         //logic to see if the person had a winning prediction
         require(dayAssetUserPrediction[_day][_asset][msg.sender] == dayAssetClosePrice[_day][_asset]);
-        for (uint i =0; i< AcceptedTokens.length; i++){
-            IERC20(AcceptedTokens[i]).transfer(
-                msg.sender, (dayAssetTokenAmount[_day][_asset][AcceptedTokens[i]]/dayAssetNoOfWinners[_day][_asset]) * 90/100
-            );
-        }
+        IERC20(Dai).transfer(
+            msg.sender, (dayAssetTotalAmount[_day][_asset]) * 90/100
+        );
+        //then they vote for the chaity
+        /*
+        bytes memory payload =abi.encodeWithSignature("voteForCharity(bytes8)", _charity);
+        (bool success, bytes memory returnData) = address(IBA).call(payload);
+        require(success);
+        return returnData;
+        */
+        
     }
     
     function checkUpkeep(bytes calldata /* checkData */) external override returns (bool upkeepNeeded, bytes memory /* performData */) {
@@ -200,33 +198,17 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
     function performUpkeep(bytes calldata /* performData */) external override {
         setNewClosingPrice();
         setNumberOfWinners();
+        sendToIba();
         dayCount++;
     }
     
-    //called inside the predict function
-    function voteForCharity(bytes8 charity) internal {
-        monthCharityVotes[monthCount][charity] += 1;
-    }
     
-    
-    function setwinningCharity() internal returns(bytes8){
-        uint128 winning_votes = 0;
-        bytes8 winning_charity;
-        for (uint i =0; i < charities.length; i++) {
-            if (monthCharityVotes[monthCount][charities[i]] > winning_votes){
-                monthVoteResults[monthCount] = charities[i];
-            }
-        }
-        return winning_charity;
-    }
-
-    
-    //sends winnings to an interest bearing account 
-    function sendToIba() public onlyOwner {
+    //sends non winnings to an interest bearibg account 
+    function sendToIba() private onlyOwner returns (bytes memory) {
         require(getTime() > dayCloseTime[dayCount -1] + 64800 seconds);
         for (uint128 i = 0; i < predictableAssets.length; i++) {
             for (uint p = 0; p < AcceptedTokens.length; p++) {
-                bytes memory payload =abi.encodeWithSignature("deposit(address, uint, address, uint)", AcceptedTokens[p], ((dayAssetTokenAmount[dayCount][predictableAssets[i]][AcceptedTokens[p]]) * 10/100), address(this), 0);
+                bytes memory payload =abi.encodeWithSignature("deposit(address, uint, address, uint)", Dai, ((dayAssetTotalAmount[dayCount][predictableAssets[i]]) * 10/100), moonSquare, 0);
                 (bool success, bytes memory returnData) = address(IBA).call(payload);
                 require(success);
                 //IERC20(AcceptedTokens[p]).transfer(IBA, (dayAssetTokenAmount[dayCount][predictableAssets[i]][AcceptedTokens[p]]) * 10/100);
@@ -235,41 +217,4 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
         }
     }
     
-    /*
-    function withdrawCharityFromIba() internal {
-        for (uint p = 0; p < AcceptedTokens.length; p++) {
-            /*IERC20(AcceptedTokens[p]).transferFrom(
-                IBA,
-                address(this),
-                (monthTokenCharityAmount[monthCount][AcceptedTokens[p]]) //Hence should be done before the month count gets updated
-            );
-        }
-        
-    } */
-
-    /*
-        Remaining:
-            Tracking IBA returns & Protocal money
-            Transferring Protocal Money from IBA
-    */
-
-    
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

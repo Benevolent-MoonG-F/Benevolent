@@ -3,12 +3,12 @@ pragma solidity ^0.8.0;
 pragma experimental ABIEncoderV2;
 
 
-import {MoonSquares, ISuperToken, IConstantFlowAgreementV1, ISuperfluid} from "./MoonSquares.sol";
+import {MoonSquares, ISuperToken, IConstantFlowAgreementV1, ISuperfluid} from "./Redirect.sol";
 
 import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 
 
-contract TradeableCashflowOption is ERC721, MoonSquares {
+contract TradableNft is ERC721, MoonSquares {
     address tokenOwner;
     
   constructor (
@@ -19,7 +19,7 @@ contract TradeableCashflowOption is ERC721, MoonSquares {
     IConstantFlowAgreementV1 cfa,
     ISuperToken acceptedToken
   )
-    ERC721 ( _name, _symbol )
+    ERC721 ( _name, _symbol)
     MoonSquares (
       host,
       cfa,
@@ -40,7 +40,7 @@ contract TradeableCashflowOption is ERC721, MoonSquares {
       _changeReceiver(to);
   }
   
-  function createNewToken() external {
+  function createNewToken() external /* onlyOwner */{
       _mint(tokenOwner, 1);
   }
 }
