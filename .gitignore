@@ -12,3 +12,4 @@ SuperNFT.sol
 MoneyBank.sol
 Box.sol
 optional/
+deploy_and_run.py
