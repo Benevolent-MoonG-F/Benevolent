@@ -41,6 +41,7 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable, Reentr
     
     ISuperfluid private _host; // host
     IConstantFlowAgreementV1 private _cfa; // the stored constant flow agreement class address
+    IInstantDistributionAgreementV1 private _ida; //the stored instant distribution class address 
     
     //the Super token used to pay for option premium (sent directly to the NFT and redirected to owner of the NFT)
     ISuperToken public _acceptedToken; // accepted token, could be the aToken 
@@ -56,12 +57,15 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable, Reentr
     uint128 constant payDayDuration = 30 days;
 
     uint totalPaid;
+
+    uint32 public constant PAYMENT_INDEX = 0;
     
 
     address constant IBA = 0x8A753747A1Fa494EC906cE90E9f37563A8AF630e; //should be aave contact address or the IBA to be used
     address DAO; //address of the Dao contact
+    address flowDistrubuter;
     address SWAPADRESS;
-    address Dai;
+    IERC20 Dai;
     address _aaveToken;
     
     mapping (uint256 => uint256) public roundStartPrice;
@@ -125,7 +129,17 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable, Reentr
 
     mapping (address => uint256) totalAmountPlayed;//shows how much every player has placed
     
-    address[] public _receiver;
+    //address[] public _receiver;
+
+
+    //Superfluidhost = mumbai(0xEB796bdb90fFA0f28255275e16936D25d3418603), mainet(0x3E14dC1b13c488a8d5D310918780c983bD5982E7)
+    //ida = mumbai(0x804348D4960a61f2d5F9ce9103027A3E849E09b8), mainet(0xB0aABBA4B2783A72C52956CDEF62d438ecA2d7a1)
+    //cfa = mumbai(0x49e565Ed1bdc17F3d220f72DF0857C26FA83F873), mainet(0x6EeE6060f715257b970700bc2656De21dEdF074C)
+    //fDai = mumbai(0x15F0Ca26781C3852f8166eD2ebce5D18265cceb7)
+    //fDaix = mumbai(0x5D8B4C2554aeB7e86F387B4d6c00Ac33499Ed01f)
+    //Dai = mainet(0x8f3cf7ad23cd3cadbd9735aff958023239c6a063)
+    //Daix = mainet(0x1305F6B6Df9Dc47159D12Eb7aC2804d4A33173c2)
+
     
     
     constructor(
@@ -135,6 +149,7 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable, Reentr
         ISuperfluid host,
         IConstantFlowAgreementV1 cfa,
         ISuperToken acceptedToken,
+        IInstantDistributionAgreementV1 ida,
         address receiver) {
         require(address(host) != address(0));
         require(address(cfa) != address(0));
@@ -145,6 +160,7 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable, Reentr
         _host = host;
         _cfa = cfa;
         _acceptedToken = acceptedToken;
+        _ida = ida;
         _receiver.push(receiver);
         payroundStartTime = block.timestamp;
 
@@ -156,6 +172,16 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable, Reentr
             SuperAppDefinitions.BEFORE_AGREEMENT_TERMINATED_NOOP;
 
         _host.registerApp(configWord);
+        _host.callAgreement(
+            _ida,
+            abi.encodeWithSelector(
+                _ida.createIndex.selector,
+                _acceptedToken,
+                PAYMENT_INDEX,
+                new bytes(0) // placeholder ctx
+            ),
+            new bytes(0) // user data
+        );
     }
 
     function addpaymentToken(IERC20 _add) public onlyOwner {
@@ -184,11 +210,12 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable, Reentr
         winers.push(_winner);
     }
     
+    
    function predictAsset(
-       uint256 _start, 
-       uint256 coin /* integer for the index of the stablecoin in allowedPayments*/, 
-       uint256 _end,
-       address[] calldata swapPairs
+        uint256 _start, 
+        uint256 coin, /* integer for the index of the stablecoin in allowedPayments, */
+        uint256 _end,
+        address[] calldata swapPairs
     ) external nonReentrant returns (bytes memory /*, uint[] memory */)
     {
         uint256 amount;
@@ -199,38 +226,33 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable, Reentr
         } else {
             amount  = 5 * 10 ** 18;
         }
+        require(IERC20(allowedPayments[coin]).approve(address(this), amount));
+        IERC20(allowedPayments[coin]).transferFrom(msg.sender, address(this), amount);
+        if (allowedPayments[coin] != Dai) {
+            IERC20(allowedPayments[coin]).approve(0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff, amount);
+
+            address(SWAPADRESS).call(
+                    abi.encodeWithSignature(
+                    "swapTokensForExactTokens(uint, uint, address[], address, uint)",
+                    amount,//amount out
+                    amount,//amount in
+                    swapPairs, //pairs geting swaped
+                    address(this), 
+                    1
+                )
+            );
+        }
 
         //remember to add aprove on the ERC20 to the QuickSwap Rrouter
-        address(SWAPADRESS).call(
-            abi.encodeWithSignature(
-                "swapTokensForExactTokens(uint, uint, address[], address, uint)",
-                amount,//amount out
-                amount,//amount in
-                swapPairs, //pairs geting swaped
-                msg.sender, 
-                1
-            )
-        );
+
         //uint[] memory returnValues = address(SWAPADRESS).call(swapload);
+
+        IERC20(Dai).approve(IBA, amount);
 
         bytes memory payload =abi.encodeWithSignature("deposit(address, uint, address, uint)", Dai, amount, address(this), 0);//should have a protocal referal to use
         (bool success, bytes memory returnData) = address(IBA).call(payload);
         require(success);
-        
-        /* IBA.deposit(
-            allowedPayments[coin],
-            amount,
-            address(this),
-            0
-        ); */
-/*
-        //transfer stablecoin
-        allowedPayments[coin].approve(address(this), amount);
-        allowedPayments[coin].transferFrom(msg.sender, address(this), amount);
-*/
-        //roundAssetTotalAmount[coinRound][allowedPayments[coin]] += amount;
-        //Dai.transferFrom(msg.sender, address(this), amount);
-        //update the betsPlaced mapping
+
         roundAddressBetsPlaced[coinRound][msg.sender].squareStartTime = _start;
         
         roundAddressBetsPlaced[coinRound][msg.sender].squareEndTime 
@@ -242,12 +264,8 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable, Reentr
         roundEndTimeArray[coinRound].push(_end);
         //update the total value played
         roundTotalStaked[coinRound] += amount;
-        //roundCharityContributions[coinRound] = (roundTotalStaked[coinRound] * 7)/100;
         roundWinnings[coinRound] = (roundTotalStaked[coinRound] * 90)/100;
-        //roundContractContribution[coinRound] = (roundTotalStaked[coinRound] * 3)/100;
-        
-        //this.voteForCharity(_charity);
-        
+
         return (returnData /*, returnValues */);
     }
 
@@ -285,30 +303,19 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable, Reentr
         //since squares will be owned by more than one person, we set the index to allow us to delagate the claiming reward function to the user.
     }
 
-    //should use superflid's flow if its just one user & instant distribution if there are several winners
-
-     function givePrize(uint256 _round, bytes calldata ctx) internal returns (bytes memory newCtx) {
+     function givePrize(uint256 _round) private {
         require(roundWinningIndex[_round].length != 0);
-        int96 inFlowRate;
-        newCtx = ctx;
         if (roundWinningIndex[_round].length == 1) {
-            //Flow Winnings
-            (newCtx, ) = _host.callAgreementWithContext(
-                _cfa,
-                abi.encodeWithSelector(
-                    _cfa.createFlow.selector,
-                    _acceptedToken,
-                    roundWinningIndex[0], //use addresses
-                    inFlowRate,
-                    new bytes(0) // placeholder
-                ),
-                "0x",
-                newCtx
-            );
+    
+            IERC20(Dai).transfer(roundPlayerArray[_round][roundWinningIndex[_round][0]], roundWinnings[coinRound]);
+
         } else {
             for (uint8 i = 0; i < roundWinningIndex[_round].length; i++) {
                 require(roundPlayerArray[_round][roundWinningIndex[_round][i]] == msg.sender);
-                //Instant Distribution Logic
+                IERC20(Dai).transfer(
+                    roundPlayerArray[_round][roundWinningIndex[_round][i]], 
+                    roundWinnings[coinRound]/roundWinningIndex[_round].length
+                );
             }
         }
         totalPaid += roundWinnings[coinRound];
@@ -331,22 +338,31 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable, Reentr
     ) {
         if (getPrice() == roundMoonPrice[coinRound]) {
             upkeepNeeded = true;
-            return (true, /* address(this).call( */ abi.encodeWithSignature("setTime(uint128)", getRound()));
+            return (true, /* address(this).call( */ abi.encodePacked(uint256(0)));
         }
         if (roundWinningIndex[coinRound].length != 0) {
             upkeepNeeded = true;
-            return (true, abi.encodeWithSignature("withdrawRoundFundsFromIba(uint256)", getRound()));//
+            return (true, abi.encodePacked(uint256(1)));
         }
         if (block.timestamp >= payroundStartTime + 30 days) {
             upkeepNeeded = true;
-            return (true, abi.encodeWithSignature("withdrawInterest(address)", _aaveToken));
+            return (true, abi.encodePacked(uint256(2)));
         }
         performData = checkData;
         
     }
 
-    function performUpkeep(bytes calldata performData) external override {
-        performData;
+function performUpkeep(bytes calldata performData) external override {
+        uint256 decodedValue = abi.decode(performData, (uint256));
+        if(decodedValue == 0){
+            setTime(coinRound);
+        } 
+        if(decodedValue == 1){
+            withdrawRoundFundsFromIba(coinRound);
+        }
+        if (decodedValue ==2) {
+            withdrawInterest(_aaveToken);
+        }
     }
 
     function tokenIsAccepted(IERC20 _token) public view returns (bool) {
@@ -372,18 +388,11 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable, Reentr
 
     //withdraws the total Amount after the moonpice gets hit
     function withdrawRoundFundsFromIba(uint128 _round) private returns (bytes memory) {
-        //if (getPrice() == roundMoonPrice[_round]) {
-            bytes memory payload =abi.encodeWithSignature("withdraw(address, uint, address)", Dai, roundWinnings[_round], address(this));
-            (bool success, bytes memory returnData) = address(IBA).call(payload);
-            require(success);
+        bytes memory payload =abi.encodeWithSignature("withdraw(address, uint, address)", Dai, roundWinnings[_round], address(this));
+        (bool success, bytes memory returnData) = address(IBA).call(payload);
+        require(success);
                 
-            /* IBA.withdraw(
-                allowedPayments[i],
-                roundAssetTotalAmount[coinRound][allowedPayments[i]],
-                address(this)
-            ); */
-            return returnData;
-        //}
+        return returnData;
         //Withdraws Funds from the predictions and the interest earned
     }
 
@@ -399,15 +408,12 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable, Reentr
         (bool success, bytes memory returnData) = address(IBA).call(payload);
         require(success);
         return(interest, returnData);
+        //remember to upgrade the dai for flow
 
     }
-
-    //sends the rounds's charity donations to the winning charity
-
     //distributes the Interest Earned on the round to members of the Dao
-    function flowToDao(/*uint256 _round,*/ bytes calldata ctx) external returns(bytes memory newCtx){
+    function flowToDao(/*uint256 _round,*/ bytes calldata ctx) private returns(bytes memory newCtx){
         //Flows interest earned from the protocal to the redirectAll contract that handles distribution
-        int96 inFlowRate;
         newCtx = ctx;
             //Flow Winnings
         (newCtx, ) = _host.callAgreementWithContext(
@@ -415,8 +421,8 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable, Reentr
             abi.encodeWithSelector(
                 _cfa.createFlow.selector,
                 _acceptedToken,
-                DAO,
-                inFlowRate, //should be the total amount of Interest withdrawnfrom the IBA divided by the number of seconds in the withdrawal interval
+                flowDistrubuter,//address to the distributer that sends funds to charity and Dao
+                (roundInterestEarned[monthCount] / 30 days), //should be the total amount of Interest withdrawnfrom the IBA divided by the number of seconds in the withdrawal interval
                 new bytes(0) // placeholder
             ),
             "0x",

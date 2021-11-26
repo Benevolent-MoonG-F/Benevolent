@@ -14,7 +14,7 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
     //preferably should use the http get to get the actual close price of an asset rather than aggregator
     //to confirm during testing phase
 
-    uint128 dayCount;//Keeps track of the days
+    uint128 dayCount;//Kepps track of the days
     
     uint128 monthCount;
 
@@ -25,8 +25,8 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
 
     mapping(uint256 => uint256) dayCloseTime; //Closing Time per asset
     
-    address constant IBA = 0x5B38Da6a701c568545dCfcB03FcB875f56beddC4;
-    address Dai;
+    address constant IBA = 0x5B38Da6a701c568545dCfcB03FcB875f56beddC4;//aavelending pool
+    IERC20 Dai;
     address QuickSwap;
     address moonSquare;
     
@@ -95,20 +95,29 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
         uint256 amount = 10 * 10**18;//the amount we set for the daily close
         require(AssetIsAccepted(_asset));//confirm the selected is an allowed asset
         require(tokenIsAccepted(AcceptedTokens[_token]), 'Token is currently not allowed.');//checks if the ERC20 token is allowed by the protocal
-        // remember to add approveFunction on ERC20 token
+        // remember to add aprovefunction on ERC20 token
         IERC20(AcceptedTokens[_token]).approve(address(this), amount);
-        address(QuickSwap).call(
-            abi.encodeWithSignature(
-                "swapTokensForExactTokens(uint, uint, address[], address, uint)",
-                amount,//amount out
-                amount,//amount in
-                swapPairs, //pairs geting swaped
-                msg.sender, 
+        if (AcceptedTokens[_token] != Dai) {
+            IERC20(AcceptedTokens[_token]).transferFrom(msg.sender, address(this), amount);//The transfer function on the ERC20 token
+            IERC20(AcceptedTokens[_token]).approve(0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff, amount);
+            address(QuickSwap).call(
+                abi.encodeWithSignature(
+                    "swapTokensForExactTokens(uint, uint, address[], address, uint)",
+                    amount,//amount out
+                    amount,//amount in
+                    swapPairs, //pairs geting swaped
+                    address(this), 
                 1
-            )
-        );
-        IERC20(Dai).approve(address(this), amount);
-        IERC20(Dai).transferFrom(msg.sender, address(this), amount);//The transfer function on the ERC20 token
+                )
+            );
+
+        } else {
+            IERC20(Dai).transferFrom(msg.sender, address(this), amount);//The transfer function on the ERC20 token
+        }
+
+
+        //IERC20(Dai).approve(address(this), amount);
+
         dayAssetTotalAmount[dayCount][_asset] += amount;
         //Updates The prediction mapping
         dayAssetUserPrediction[dayCount][_asset][msg.sender] = _prediction;
@@ -120,7 +129,7 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
         emit Predicted(msg.sender, _prediction);
     }
 
-    function setNumberOfWinners() private returns (bytes memory) {
+    function setNumberOfWinners() private {
         uint128 day = dayCount;
         for (uint8 i = 0; i < predictableAssets.length; i++) {
             require(
@@ -135,7 +144,7 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
                 bytes memory payload =abi.encodeWithSignature("addToWinners(address)", dayAssetPredictors[day][predictableAssets[i]][p]);
                 (bool success, bytes memory returnData) = address(IBA).call(payload);
                 require(success);
-                return returnData;
+                //return returnData;
             }
         }
     }
@@ -189,17 +198,29 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
         
     }
     
-    function checkUpkeep(bytes calldata /* checkData */) external override returns (bool upkeepNeeded, bytes memory /* performData */) {
+    function checkUpkeep(bytes calldata checkData) external override returns (bool upkeepNeeded, bytes memory performData) {
         if (dayCloseTime[dayCount] + 86400 seconds == getTime()){
             upkeepNeeded = true;
+            return (true, abi.encodePacked(uint256(0)));
         }
+        if (getTime() > dayCloseTime[dayCount -1] + 64800 seconds) {
+            upkeepNeeded = true;
+            return (true, abi.encodePacked(uint(1)));
+        }
+        performData = checkData;
+        
     }
     
-    function performUpkeep(bytes calldata /* performData */) external override {
-        setNewClosingPrice();
-        setNumberOfWinners();
-        sendToIba();
-        dayCount++;
+    function performUpkeep(bytes calldata performData) external override {
+         uint256 decodedValue = abi.decode(performData, (uint256));
+        if (decodedValue == 0) {
+            setNewClosingPrice();
+            setNumberOfWinners();
+            dayCount++;
+        }
+        if (decodedValue == 1) {
+            sendToIba();
+        }
     }
     
     
@@ -216,5 +237,6 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
             }
         }
     }
+
     
 }
