@@ -7,3 +7,4 @@ reports/
 tests/
 optional/
 deploy_and_run.py
+scripts

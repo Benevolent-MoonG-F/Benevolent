@@ -57,10 +57,10 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
     uint32 public constant PAYMENT_INDEX = 0;
     
 
-    address constant IBA = 0x8A753747A1Fa494EC906cE90E9f37563A8AF630e; //should be aave contact address or the IBA to be used
+    address constant IBA = 0x9198F13B08E299d85E096929fA9781A1E3d5d827; //should be aave contact address or the IBA to be used
     address DAO; //address of the Dao contact
     address flowDistrubuter;
-    address SWAPADRESS;
+    address constant SWAPADRESS = 0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506;
     IERC20 Dai;
     address _aaveToken;
     
@@ -70,11 +70,7 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
     
     mapping (uint256 => uint256) roundInterestEarned;
 
-    mapping (uint256 => uint256) public roundCharityContributions; //7% chaitable donations per asset 
-
     mapping (uint256 => uint256) public roundWinnings;//90% player winning per asset
-
-    mapping (uint256 => uint256) public roundContractContribution; //3% paid to the contract per asset
 
     //The target price (moon price) every round per asset
     mapping (uint256 => uint256) public roundMoonPrice;
@@ -125,7 +121,7 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
 
     mapping (address => uint256) totalAmountPlayed;//shows how much every player has placed
     
-    address[] public _receiver;
+    //address[] public _receiver;
 
     //Superfluidhost = mumbai(0xEB796bdb90fFA0f28255275e16936D25d3418603), mainet(0x3E14dC1b13c488a8d5D310918780c983bD5982E7)
     //ida = mumbai(0x804348D4960a61f2d5F9ce9103027A3E849E09b8), mainet(0xB0aABBA4B2783A72C52956CDEF62d438ecA2d7a1)
@@ -135,26 +131,23 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
     //Dai = mainet(0x8f3cf7ad23cd3cadbd9735aff958023239c6a063)
     //Daix = mainet(0x1305F6B6Df9Dc47159D12Eb7aC2804d4A33173c2)
 
-    
-    
     constructor(
         
         //set superfluid specific params, receiver, and accepted token in the constructor
         
         ISuperfluid host,
         IConstantFlowAgreementV1 cfa,
-        ISuperToken acceptedToken,
-        address receiver) {
+        ISuperToken acceptedToken
+        ) {
         require(address(host) != address(0));
         require(address(cfa) != address(0));
         require(address(acceptedToken) != address(0));
-        require(address(receiver) != address(0));
-        require(!host.isApp(ISuperApp(receiver)));
+        //require(address(receiver) != address(0));
+        //require(!host.isApp(ISuperApp(receiver)));
 
         _host = host;
         _cfa = cfa;
         _acceptedToken = acceptedToken;
-        _receiver.push(receiver);
         payroundStartTime = block.timestamp;
 
 
@@ -204,7 +197,10 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
     function addToWinners(address _winner) external isAllowedContract {
         winers[monthCount].push(_winner);
     }
-    
+
+    function addFlowDistributor(address addr) public onlyOwner {
+        flowDistrubuter = addr;
+    }
     
    function predictAsset(
         uint256 _start, 
@@ -237,12 +233,6 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
                 )
             );
         }
-
-        //remember to add aprove on the ERC20 to the QuickSwap Rrouter
-
-
-
-        //uint[] memory returnValues = address(SWAPADRESS).call(swapload);
 
         IERC20(Dai).approve(IBA, amount);
 

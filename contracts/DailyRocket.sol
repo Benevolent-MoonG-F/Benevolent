@@ -24,9 +24,9 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
     mapping(uint256 => uint256) dayCloseTime; //Closing Time per asset
     
     address constant IBA = 0x9198F13B08E299d85E096929fA9781A1E3d5d827;//aavelending pool
-    IERC20 Dai;
-    address QuickSwap;
-    address moonSquare;
+    address Dai = 0x15F0Ca26781C3852f8166eD2ebce5D18265cceb7;
+    address QuickSwap = 0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506;
+    address moonSquare = 0xA843fF69D74c3BC2504a112F9739CDf393B2b4d7;
     
 
     uint256 public contractStartTime; //The contract should start at 0000.00 hours
@@ -63,14 +63,10 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
 
 
     constructor(
-        IERC20 _dai, 
-        address quickswap,
-        address moonsq
+        IERC20 _dai
         )
     {
         AcceptedTokens.push(_dai);
-        QuickSwap = quickswap;
-        moonSquare = moonsq;
         contractStartTime = block.timestamp;
         dayCount = 1;
         dayCloseTime[dayCount] = contractStartTime + 86400 seconds;//adds a day to the start time. to change to an input later.
@@ -102,7 +98,7 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
         uint256 amount = 10 * 10**18;//the amount we set for the daily close
         // remember to add aprovefunction on ERC20 token
         IERC20(AcceptedTokens[_token]).approve(address(this), amount);
-        if (AcceptedTokens[_token] != Dai) {
+        if (AcceptedTokens[_token] != IERC20(Dai)) {
             IERC20(AcceptedTokens[_token]).transferFrom(msg.sender, address(this), amount);//The transfer function on the ERC20 token
             IERC20(AcceptedTokens[_token]).approve(QuickSwap, amount);
             address(QuickSwap).call(
