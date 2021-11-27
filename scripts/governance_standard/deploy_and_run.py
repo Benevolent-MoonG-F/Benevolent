@@ -1,3 +1,5 @@
+
+#Do not use this scripts to run the governance tokens
 from scripts.helpful_scripts import LOCAL_BLOCKCHAIN_ENVIRONMENTS, get_account
 from brownie import (
     GovernorContract,

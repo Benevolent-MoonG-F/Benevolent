@@ -6,5 +6,5 @@ build/
 reports/
 tests/
 optional/
-deploy_and_run.py
-scripts
+scripts/governance_standard/deploy_and_run.py
+
