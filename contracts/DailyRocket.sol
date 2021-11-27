@@ -4,8 +4,8 @@ pragma solidity ^0.8.0;
 
 import "@chainlink/contracts/src/v0.8/interfaces/KeeperCompatibleInterface.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
-import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
-import '@openzeppelin/contracts/access/Ownable.sol';
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
 
 
@@ -15,8 +15,6 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
     //to confirm during testing phase
 
     uint128 dayCount;//Kepps track of the days
-    
-    uint128 monthCount;
 
     bytes8[] predictableAssets;//all assets that a user can predict
     address[] assetPriceAggregators;
@@ -25,7 +23,7 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
 
     mapping(uint256 => uint256) dayCloseTime; //Closing Time per asset
     
-    address constant IBA = 0x5B38Da6a701c568545dCfcB03FcB875f56beddC4;//aavelending pool
+    address constant IBA = 0x9198F13B08E299d85E096929fA9781A1E3d5d827;//aavelending pool
     IERC20 Dai;
     address QuickSwap;
     address moonSquare;
@@ -62,17 +60,17 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
 
     //user and their prediction
     mapping(uint128 => mapping(bytes8 => mapping(address => uint256))) public dayAssetUserPrediction;
-    
-    bytes8[] charities;
-    address[] charityAddress;
 
 
-    mapping (uint128 => uint256) monthInterestEarned;
-
-
-    constructor(IERC20 _dai, IERC20 _ust){
+    constructor(
+        IERC20 _dai, 
+        address quickswap,
+        address moonsq
+        )
+    {
         AcceptedTokens.push(_dai);
-        AcceptedTokens.push(_ust);
+        QuickSwap = quickswap;
+        moonSquare = moonsq;
         contractStartTime = block.timestamp;
         dayCount = 1;
         dayCloseTime[dayCount] = contractStartTime + 86400 seconds;//adds a day to the start time. to change to an input later.
@@ -84,22 +82,29 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
             dayAssetClosePrice[dayCount][predictableAssets[i]] = getPrice(i);
         }
     }
+
+    function addPaymentToken(IERC20 _address) public onlyOwner {
+        AcceptedTokens.push(_address);
+    }
     
-    function addAssetAndAgg(bytes8 _asset, address _aggregator) public onlyOwner {
+    function addAssetAndAgg(bytes8 _asset, address _aggregator) external onlyOwner {
         predictableAssets.push(_asset);
         assetPriceAggregators.push(_aggregator);
     }
 
-    function predictClosePrice(bytes8 _asset, uint256 _prediction, uint256 _token, /*bytes8 _charity,*/ address[] calldata swapPairs) public {
+    function predictClosePrice(
+        bytes8 _asset, uint256 _prediction, 
+        uint256 _token, /*bytes8 _charity,*/ 
+        address[] calldata swapPairs
+    ) public allowedAsset(_asset) allowedToken(AcceptedTokens[_token]) 
+    {
         require(getTime() <= dayCloseTime[dayCount -1] + 64800 seconds);//After this time, one cannot
         uint256 amount = 10 * 10**18;//the amount we set for the daily close
-        require(AssetIsAccepted(_asset));//confirm the selected is an allowed asset
-        require(tokenIsAccepted(AcceptedTokens[_token]), 'Token is currently not allowed.');//checks if the ERC20 token is allowed by the protocal
         // remember to add aprovefunction on ERC20 token
         IERC20(AcceptedTokens[_token]).approve(address(this), amount);
         if (AcceptedTokens[_token] != Dai) {
             IERC20(AcceptedTokens[_token]).transferFrom(msg.sender, address(this), amount);//The transfer function on the ERC20 token
-            IERC20(AcceptedTokens[_token]).approve(0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff, amount);
+            IERC20(AcceptedTokens[_token]).approve(QuickSwap, amount);
             address(QuickSwap).call(
                 abi.encodeWithSignature(
                     "swapTokensForExactTokens(uint, uint, address[], address, uint)",
@@ -129,7 +134,7 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
         emit Predicted(msg.sender, _prediction);
     }
 
-    function setNumberOfWinners() private {
+    function setNumberOfWinners() private returns (bytes memory){
         uint128 day = dayCount;
         for (uint8 i = 0; i < predictableAssets.length; i++) {
             require(
@@ -144,7 +149,7 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
                 bytes memory payload =abi.encodeWithSignature("addToWinners(address)", dayAssetPredictors[day][predictableAssets[i]][p]);
                 (bool success, bytes memory returnData) = address(IBA).call(payload);
                 require(success);
-                //return returnData;
+                return returnData;
             }
         }
     }
@@ -164,23 +169,21 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
          return uint256(answer * 10000000000);
     }
 
-    function tokenIsAccepted(IERC20 _token) public view returns (bool) {
-        for(uint i =0; i < AcceptedTokens.length; i++) {
-            if(AcceptedTokens[i] == _token){
-                return true;
-            }
+    modifier allowedAsset(bytes8 _asset) {
+        for(uint i =0; i < predictableAssets.length; i++) {
+            require(predictableAssets[i] == _asset);
         }
-        return false; 
+        _;
     }
 
-    function AssetIsAccepted(bytes8 _asset) public view returns (bool) {
+    modifier allowedToken(IERC20 _token) {
         for(uint i =0; i < predictableAssets.length; i++) {
-            if(predictableAssets[i] == _asset) {
-                return true;
-            }
+            require(AcceptedTokens[i] == _token);
         }
-        return false;
+        _;
     }
+
+
 
     function claimWinnings(uint128 _day, bytes8 _asset) public {
         //logic to see if the person had a winning prediction
