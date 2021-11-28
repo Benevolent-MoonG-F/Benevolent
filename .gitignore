@@ -5,6 +5,5 @@ __pycache__
 build/
 reports/
 tests/
-optional/
-scripts/governance_standard/deploy_and_run.py
-
+Moon.sol
+Day.sol

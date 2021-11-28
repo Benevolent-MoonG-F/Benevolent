@@ -89,7 +89,8 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
     }
 
     function predictClosePrice(
-        bytes8 _asset, uint256 _prediction, 
+        bytes8 _asset, 
+        uint256 _prediction, 
         uint256 _token, /*bytes8 _charity,*/ 
         address[] calldata swapPairs
     ) public allowedAsset(_asset) allowedToken(AcceptedTokens[_token]) 
@@ -97,7 +98,7 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
         require(getTime() <= dayCloseTime[dayCount -1] + 64800 seconds);//After this time, one cannot
         uint256 amount = 10 * 10**18;//the amount we set for the daily close
         // remember to add aprovefunction on ERC20 token
-        IERC20(AcceptedTokens[_token]).approve(address(this), amount);
+        require(IERC20(AcceptedTokens[_token]).allowance(msg.sender, address(this)) >= amount);
         if (AcceptedTokens[_token] != IERC20(Dai)) {
             IERC20(AcceptedTokens[_token]).transferFrom(msg.sender, address(this), amount);//The transfer function on the ERC20 token
             IERC20(AcceptedTokens[_token]).approve(QuickSwap, amount);
@@ -227,8 +228,16 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
     function sendToIba() private onlyOwner returns (bytes memory) {
         require(getTime() > dayCloseTime[dayCount -1] + 64800 seconds);
         for (uint128 i = 0; i < predictableAssets.length; i++) {
+            uint amount = ((dayAssetTotalAmount[dayCount][predictableAssets[i]]) * 10/100);
+            IERC20(Dai).approve(IBA, amount);
             for (uint p = 0; p < AcceptedTokens.length; p++) {
-                bytes memory payload =abi.encodeWithSignature("deposit(address, uint, address, uint)", Dai, ((dayAssetTotalAmount[dayCount][predictableAssets[i]]) * 10/100), moonSquare, 0);
+                bytes memory payload =abi.encodeWithSignature(
+                    "deposit(address, uint, address, uint)",
+                    Dai,
+                    amount,
+                    moonSquare,
+                    0
+                );
                 (bool success, bytes memory returnData) = address(IBA).call(payload);
                 require(success);
                 //IERC20(AcceptedTokens[p]).transfer(IBA, (dayAssetTokenAmount[dayCount][predictableAssets[i]][AcceptedTokens[p]]) * 10/100);
