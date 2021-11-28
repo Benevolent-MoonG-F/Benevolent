@@ -1,9 +1,13 @@
 from brownie import DailyRocket, accounts, network, config
+from scripts.helpful_scripts import get_account
+
+fDai = 0x15F0Ca26781C3852f8166eD2ebce5D18265cceb7
+
 
 def main():
-    account = accounts.add(config['wallets']['from_key']) or accounts[0]
+    account = get_account()
     DailyRocket.deploy(
-        0x8f3cf7ad23cd3cadbd9735aff958023239c6a063,
+        fDai,
         {'from': account}
     )
     #the constructor has two arguments, addresses of allowed ERC20 tokens

@@ -63,6 +63,7 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
     address constant SWAPADRESS = 0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506;
     IERC20 Dai;
     address _aaveToken;
+    address governanceToken;
     
     mapping (uint256 => uint256) public roundStartPrice;
 
@@ -103,7 +104,7 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
     
     mapping(uint128 => mapping(bytes8 => uint128)) public roundCharityVotes;
     
-    mapping(uint128 => bytes8) roundVoteResults;
+    mapping(uint128 => address) roundVoteResults;
 
     //efficient way to store the arrays
     
@@ -193,6 +194,10 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
         }
         _;
     }
+
+    function addGovernanceToken(address _gtAdress) public isAllowedContract {
+        governanceToken = _gtAdress;
+    }
     
     function addToWinners(address _winner) external isAllowedContract {
         winers[monthCount].push(_winner);
@@ -200,6 +205,16 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
 
     function addFlowDistributor(address addr) public onlyOwner {
         flowDistrubuter = addr;
+    }
+
+    function changeReceiverTo(address _charityAddress) private returns (bytes memory) {
+        bytes memory payload = abi.encodeWithSignature(
+            "changeReceiverAdress(address)",
+            _charityAddress
+        );
+        (bool success, bytes memory returnData) = address(flowDistrubuter).call(payload);
+        require(success);
+        return returnData;
     }
     
    function predictAsset(
@@ -217,7 +232,7 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
         } else {
             amount  = 5 * 10 ** 18;
         }
-        require(IERC20(allowedPayments[coin]).approve(address(this), amount));
+        require(IERC20(allowedPayments[coin]).allowance(msg.sender, address(this)) >= amount);
         IERC20(allowedPayments[coin]).transferFrom(msg.sender, address(this), amount);
         if (allowedPayments[coin] != Dai) {
             IERC20(allowedPayments[coin]).approve(0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff, amount);
@@ -350,8 +365,10 @@ function performUpkeep(bytes calldata performData) external override {
             withdrawRoundFundsFromIba();
         }
         if (decodedValue ==2) {
+            payroundStartTime +=30 days;
             withdrawInterest(_aaveToken);
-            //flowToPaymentDistributer();
+            flowToPaymentDistributer();
+            distributeToMembers();
         }
     }
 
@@ -367,9 +384,10 @@ function performUpkeep(bytes calldata performData) external override {
         for (uint i =0; i < charities.length; i++) {
             if (roundCharityVotes[monthCount][charities[i]] > winning_votes){
                 winning_votes == roundCharityVotes[monthCount][charities[i]];
-                roundVoteResults[monthCount] = charities[i];
+                roundVoteResults[monthCount] = charityAddress[i];
             }
         }
+        changeReceiverTo(roundVoteResults[monthCount]);
         //return charities[i];
     }
 
@@ -381,6 +399,19 @@ function performUpkeep(bytes calldata performData) external override {
         return returnData;
         
         //Withdraws Funds from the predictions and the interest earned
+    }
+
+    function distributeToMembers() private returns (bytes memory) {
+        require(monthCount != 0);
+        uint256 cashAmount = _acceptedToken.balanceOf(governanceToken);
+        bytes memory payload = abi.encodeWithSignature(
+            "distribute(uint256)",
+            cashAmount
+        );
+        (bool success, bytes memory returnData) = address(governanceToken).call(payload);
+        require(success);
+        return returnData;
+
     }
 
     function withdrawInterest(address aaveToken) private returns(uint, bytes memory) {
@@ -400,9 +431,9 @@ function performUpkeep(bytes calldata performData) external override {
 
     }
     //distributes the Interest Earned on the round to members of the Dao
-    function flowToPaymentDistributer(/*uint256 _round,*/ bytes calldata ctx) private returns(bytes memory newCtx){
+    function flowToPaymentDistributer(/*uint256 _round, bytes calldata ctx */) private returns(bytes memory newCtx){
         //Flows interest earned from the protocal to the redirectAll contract that handles distribution
-        newCtx = ctx;
+        //newCtx = ctx;
             //Flow Winnings
         (newCtx, ) = _host.callAgreementWithContext(
             _cfa,
