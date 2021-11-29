@@ -19,14 +19,14 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
     bytes8[] predictableAssets;//all assets that a user can predict
     address[] assetPriceAggregators;
 
-    mapping(uint256 => mapping(bytes8 => uint256)) dayAssetClosePrice; //Closing Price per asset 
+    mapping(uint256 => mapping(bytes8 => int256)) dayAssetClosePrice; //Closing Price per asset 
 
     mapping(uint256 => uint256) dayCloseTime; //Closing Time per asset
     
     address constant IBA = 0x9198F13B08E299d85E096929fA9781A1E3d5d827;//aavelending pool
     address Dai = 0x15F0Ca26781C3852f8166eD2ebce5D18265cceb7;
     address QuickSwap = 0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506;
-    address moonSquare = 0xA843fF69D74c3BC2504a112F9739CDf393B2b4d7;
+    address moonSquare = 0x13AFBeDc95F449D6ff5700477ba9Caa01Ef605D6;
     
 
     uint256 public contractStartTime; //The contract should start at 0000.00 hours
@@ -38,13 +38,13 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
     mapping(uint256 => mapping(bytes8 => uint256)) public dayAssetNoOfWinners;
     
 
-    mapping(uint256 => mapping(bytes8 => uint256[])) public dayAssetPrediction;
+    mapping(uint256 => mapping(bytes8 => int256[])) public dayAssetPrediction;
 
 
     mapping(uint256 => mapping(bytes8 => address[])) public dayAssetPredictors;
 
 
-    event Predicted(address indexed _placer, uint256 _prediction);
+    event Predicted(address indexed _placer, int256 _prediction);
     
     struct Charity {
         bytes8 name;
@@ -59,7 +59,7 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
     mapping(uint128 => mapping(bytes8 => address[])) public dailyAssetWinners;
 
     //user and their prediction
-    mapping(uint128 => mapping(bytes8 => mapping(address => uint256))) public dayAssetUserPrediction;
+    mapping(uint128 => mapping(bytes8 => mapping(address => int256))) public dayAssetUserPrediction;
 
 
     constructor(
@@ -90,7 +90,7 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
 
     function predictClosePrice(
         bytes8 _asset, 
-        uint256 _prediction, 
+        int _prediction, 
         uint256 _token, /*bytes8 _charity,*/ 
         address[] calldata swapPairs
     ) public allowedAsset(_asset) allowedToken(AcceptedTokens[_token]) 
@@ -152,18 +152,16 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
     }
 
 
-    function getTime() public view returns(uint256){
-        AggregatorV3Interface priceFeed = AggregatorV3Interface(0x8A753747A1Fa494EC906cE90E9f37563A8AF630e);
-        //kovan network
-        (,,,uint256 answer,) = priceFeed.latestRoundData();
-         return uint256(answer * 10000000000);
+    function getTime() public view returns(uint){
+        AggregatorV3Interface priceFeed = AggregatorV3Interface(0x12162c3E810393dEC01362aBf156D7ecf6159528);
+        (,,,uint answer,) = priceFeed.latestRoundData();
+         return uint(answer * 10000000000);
     }
 
-    function getPrice(uint256 _aggindex) public view returns(uint256){
+    function getPrice(uint256 _aggindex) public view returns(int){
         AggregatorV3Interface priceFeed = AggregatorV3Interface(assetPriceAggregators[_aggindex]);
-        //kovan network
-        (,int256 answer,,,) = priceFeed.latestRoundData();
-         return uint256(answer * 10000000000);
+        (,int answer,,,) = priceFeed.latestRoundData();
+         return int(answer * 10000000000);
     }
 
     modifier allowedAsset(bytes8 _asset) {
