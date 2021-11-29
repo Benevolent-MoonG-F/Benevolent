@@ -42,7 +42,7 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
     ISuperToken public _acceptedToken; // accepted token, could be the aToken 
 
 
-    IERC20[] public allowedPayments;//list of all accepted stablecoins for placing a prediction
+    address[] public allowedPayments;//list of all accepted stablecoins for placing a prediction
 
     address[] public contracts;
 
@@ -63,7 +63,7 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
     address DAO; //address of the Dao contact
     address flowDistrubuter;
     address constant SWAPADRESS = 0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506;
-    IERC20 Dai;
+    address Dai = 0x4F96Fe3b7A6Cf9725f59d353F723c1bDb64CA6Aa;
     address _aaveToken;
     address governanceToken;
     
@@ -123,16 +123,9 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
     mapping (uint256 => mapping (address => Bet)) public roundAddressBetsPlaced;
 
     mapping (address => uint256) totalAmountPlayed;//shows how much every player has placed
-    
-    //address[] public _receiver;
 
-    //Superfluidhost = mumbai(0xEB796bdb90fFA0f28255275e16936D25d3418603), mainet(0x3E14dC1b13c488a8d5D310918780c983bD5982E7)
-    //ida = mumbai(0x804348D4960a61f2d5F9ce9103027A3E849E09b8), mainet(0xB0aABBA4B2783A72C52956CDEF62d438ecA2d7a1)
-    //cfa = mumbai(0x49e565Ed1bdc17F3d220f72DF0857C26FA83F873), mainet(0x6EeE6060f715257b970700bc2656De21dEdF074C)
-    //fDai = mumbai(0x15F0Ca26781C3852f8166eD2ebce5D18265cceb7)
-    //fDaix = mumbai(0x5D8B4C2554aeB7e86F387B4d6c00Ac33499Ed01f)
-    //Dai = mainet(0x8f3cf7ad23cd3cadbd9735aff958023239c6a063)
-    //Daix = mainet(0x1305F6B6Df9Dc47159D12Eb7aC2804d4A33173c2)
+    event Predicted(address indexed _placer, uint256 _start, uint _end);
+    
 
     constructor(
         
@@ -164,7 +157,7 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
 
     }
 
-    function addpaymentToken(IERC20 _add) external onlyOwner {
+    function addpaymentToken(address _add) external onlyOwner {
         allowedPayments.push(_add);
     }
 
@@ -219,6 +212,7 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
         return returnData;
     }
     
+
    function predictAsset(
         uint256 _start, 
         uint256 coin, /* integer for the index of the stablecoin in allowedPayments, */
@@ -269,18 +263,21 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
         //update the total value played
         roundTotalStaked[coinRound] += uint(amount);
         roundWinnings[coinRound] = (roundTotalStaked[coinRound] * 90)/100;
+        emit Predicted(msg.sender, _start, _end);
 
         return (returnData /*, returnValues */);
+
+
     }
 
     function getPrice() public view returns(int256){
-        AggregatorV3Interface priceFeed = AggregatorV3Interface(0x12162c3E810393dEC01362aBf156D7ecf6159528);//returns Link/matic Price 
+        AggregatorV3Interface priceFeed = AggregatorV3Interface(0xCeE03CF92C7fFC1Bad8EAA572d69a4b61b6D4640);//returns Link/matic Price 
         (,int256 answer,,,) = priceFeed.latestRoundData();
         return int256(answer * 10000000000);
     }
 
     function getTime() public view returns(uint256){
-        AggregatorV3Interface priceFeed = AggregatorV3Interface(0x12162c3E810393dEC01362aBf156D7ecf6159528);
+        AggregatorV3Interface priceFeed = AggregatorV3Interface(0xCeE03CF92C7fFC1Bad8EAA572d69a4b61b6D4640);
         //Matic network
         (,,,uint256 answer,) = priceFeed.latestRoundData();
          return uint256(answer * 10000000000);
@@ -374,7 +371,7 @@ function performUpkeep(bytes calldata performData) external override {
         }
     }
 
-    modifier allowedToken(IERC20 _token) {
+    modifier allowedToken(address _token) {
         for(uint i =0; i < allowedPayments.length; i++) {
             require(allowedPayments[i] == _token);
         }

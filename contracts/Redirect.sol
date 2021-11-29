@@ -62,13 +62,6 @@ contract RedirectAll is SuperAppBase, Ownable {
 
         _host.registerApp(configWord);
     }
-    //Superfluidhost = mumbai(0xEB796bdb90fFA0f28255275e16936D25d3418603), mainet(0x3E14dC1b13c488a8d5D310918780c983bD5982E7)
-    //ida = mumbai(0x804348D4960a61f2d5F9ce9103027A3E849E09b8), mainet(0xB0aABBA4B2783A72C52956CDEF62d438ecA2d7a1)
-    //cfa = mumbai(0x49e565Ed1bdc17F3d220f72DF0857C26FA83F873), mainet(0x6EeE6060f715257b970700bc2656De21dEdF074C)
-    //fDai = mumbai(0x15F0Ca26781C3852f8166eD2ebce5D18265cceb7)
-    //fDaix = mumbai(0x5D8B4C2554aeB7e86F387B4d6c00Ac33499Ed01f)
-    //Dai = mainet(0x8f3cf7ad23cd3cadbd9735aff958023239c6a063)
-    //Daix = mainet(0x1305F6B6Df9Dc47159D12Eb7aC2804d4A33173c2)
 
     function addReceiver(address _dev) public onlyOwner {
         require(_receiver.length < 3);

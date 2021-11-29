@@ -26,6 +26,7 @@ contract BMSGToken is ERC20Votes, SuperAppBase, Ownable {
 
     mapping (address => bool) public isSubscribing;
 
+
     constructor(
         ISuperToken cashToken,
         ISuperfluid host,

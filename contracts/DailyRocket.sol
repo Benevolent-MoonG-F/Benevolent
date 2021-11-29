@@ -24,9 +24,10 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
     mapping(uint256 => uint256) dayCloseTime; //Closing Time per asset
     
     address constant IBA = 0x9198F13B08E299d85E096929fA9781A1E3d5d827;//aavelending pool
-    address Dai = 0x15F0Ca26781C3852f8166eD2ebce5D18265cceb7;
+    address Dai = 0x4F96Fe3b7A6Cf9725f59d353F723c1bDb64CA6Aa;
     address QuickSwap = 0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506;
-    address moonSquare = 0x13AFBeDc95F449D6ff5700477ba9Caa01Ef605D6;
+    address moonSquare = 0xE0AF2f8698638F49b37776B26D27f9e40fDE0249;
+    
     
 
     uint256 public contractStartTime; //The contract should start at 0000.00 hours
@@ -54,7 +55,7 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
     mapping (address => Charity) public presentCharities;
 
 
-    IERC20[] public AcceptedTokens;
+    address[] public AcceptedTokens;
 
     mapping(uint128 => mapping(bytes8 => address[])) public dailyAssetWinners;
 
@@ -63,7 +64,7 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
 
 
     constructor(
-        IERC20 _dai
+        address _dai
         )
     {
         AcceptedTokens.push(_dai);
@@ -79,7 +80,7 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
         }
     }
 
-    function addPaymentToken(IERC20 _address) public onlyOwner {
+    function addPaymentToken(address _address) public onlyOwner {
         AcceptedTokens.push(_address);
     }
     
@@ -99,7 +100,7 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
         uint256 amount = 10 * 10**18;//the amount we set for the daily close
         // remember to add aprovefunction on ERC20 token
         require(IERC20(AcceptedTokens[_token]).allowance(msg.sender, address(this)) >= amount);
-        if (AcceptedTokens[_token] != IERC20(Dai)) {
+        if (AcceptedTokens[_token] != Dai) {
             IERC20(AcceptedTokens[_token]).transferFrom(msg.sender, address(this), amount);//The transfer function on the ERC20 token
             IERC20(AcceptedTokens[_token]).approve(QuickSwap, amount);
             address(QuickSwap).call(
@@ -153,7 +154,7 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
 
 
     function getTime() public view returns(uint){
-        AggregatorV3Interface priceFeed = AggregatorV3Interface(0x12162c3E810393dEC01362aBf156D7ecf6159528);
+        AggregatorV3Interface priceFeed = AggregatorV3Interface(0xCeE03CF92C7fFC1Bad8EAA572d69a4b61b6D4640);
         (,,,uint answer,) = priceFeed.latestRoundData();
          return uint(answer * 10000000000);
     }
@@ -171,7 +172,7 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
         _;
     }
 
-    modifier allowedToken(IERC20 _token) {
+    modifier allowedToken(address _token) {
         for(uint i =0; i < predictableAssets.length; i++) {
             require(AcceptedTokens[i] == _token);
         }
@@ -186,13 +187,6 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
         IERC20(Dai).transfer(
             msg.sender, (dayAssetTotalAmount[_day][_asset]) * 90/100
         );
-        //then they vote for the chaity
-        /*
-        bytes memory payload =abi.encodeWithSignature("voteForCharity(bytes8)", _charity);
-        (bool success, bytes memory returnData) = address(IBA).call(payload);
-        require(success);
-        return returnData;
-        */
         
     }
     
