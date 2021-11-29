@@ -1,3 +1,5 @@
+//Change receiver
+//Distribute to Dao members
 //SPDX-License-Identifier: MIT
 
 pragma solidity ^0.8.0;
@@ -65,7 +67,7 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
     address _aaveToken;
     address governanceToken;
     
-    mapping (uint256 => uint256) public roundStartPrice;
+    mapping (uint256 => int256) public roundStartPrice;
 
     mapping(uint256 => mapping(IERC20 => uint256)) roundAssetTotalAmount;
     
@@ -74,7 +76,7 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
     mapping (uint256 => uint256) public roundWinnings;//90% player winning per asset
 
     //The target price (moon price) every round per asset
-    mapping (uint256 => uint256) public roundMoonPrice;
+    mapping (uint256 => int256) public roundMoonPrice;
 
     //when the rallyprice get's set
     mapping (uint256 => uint256) public roundStartTime;
@@ -224,7 +226,7 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
         address[] calldata swapPairs
     ) public allowedToken(allowedPayments[coin]) returns (bytes memory /*, uint[] memory */)
     {
-        uint256 amount;
+        int256 amount;
         uint256 duration = 300 seconds;
         
         if (getPrice() > roundStartPrice[coinRound]) {
@@ -232,16 +234,16 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
         } else {
             amount  = 5 * 10 ** 18;
         }
-        require(IERC20(allowedPayments[coin]).allowance(msg.sender, address(this)) >= amount);
-        IERC20(allowedPayments[coin]).transferFrom(msg.sender, address(this), amount);
+        require(IERC20(allowedPayments[coin]).allowance(msg.sender, address(this)) >= uint(amount));
+        IERC20(allowedPayments[coin]).transferFrom(msg.sender, address(this), uint(amount));
         if (allowedPayments[coin] != Dai) {
-            IERC20(allowedPayments[coin]).approve(0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff, amount);
+            IERC20(allowedPayments[coin]).approve(0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff, uint(amount));
 
             address(SWAPADRESS).call(
                     abi.encodeWithSignature(
                     "swapTokensForExactTokens(uint, uint, address[], address, uint)",
-                    amount,//amount out
-                    amount,//amount in
+                    uint(amount),//amount out
+                    uint(amount),//amount in
                     swapPairs, //pairs geting swaped
                     address(this), 
                     1
@@ -249,7 +251,7 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
             );
         }
 
-        IERC20(Dai).approve(IBA, amount);
+        IERC20(Dai).approve(IBA, uint(amount));
 
         bytes memory payload =abi.encodeWithSignature("deposit(address, uint, address, uint)", Dai, amount, address(this), 0);//should have a protocal referal to use
         (bool success, bytes memory returnData) = address(IBA).call(payload);
@@ -265,20 +267,20 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
         roundStartTimeArray[coinRound].push(_start);
         roundEndTimeArray[coinRound].push(_end);
         //update the total value played
-        roundTotalStaked[coinRound] += amount;
+        roundTotalStaked[coinRound] += uint(amount);
         roundWinnings[coinRound] = (roundTotalStaked[coinRound] * 90)/100;
 
         return (returnData /*, returnValues */);
     }
 
-    function getPrice() public view returns(uint256){
-        AggregatorV3Interface priceFeed = AggregatorV3Interface(0xd9FFdb71EbE7496cC440152d43986Aae0AB76665);//returns Link Price 
+    function getPrice() public view returns(int256){
+        AggregatorV3Interface priceFeed = AggregatorV3Interface(0x12162c3E810393dEC01362aBf156D7ecf6159528);//returns Link/matic Price 
         (,int256 answer,,,) = priceFeed.latestRoundData();
-        return uint256(answer * 10000000000);
+        return int256(answer * 10000000000);
     }
 
     function getTime() public view returns(uint256){
-        AggregatorV3Interface priceFeed = AggregatorV3Interface(0xd9FFdb71EbE7496cC440152d43986Aae0AB76665);
+        AggregatorV3Interface priceFeed = AggregatorV3Interface(0x12162c3E810393dEC01362aBf156D7ecf6159528);
         //Matic network
         (,,,uint256 answer,) = priceFeed.latestRoundData();
          return uint256(answer * 10000000000);
