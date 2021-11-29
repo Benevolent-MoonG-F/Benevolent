@@ -16,10 +16,10 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
 
     uint128 dayCount;//Kepps track of the days
 
-    bytes8[] predictableAssets;//all assets that a user can predict
+    uint[] predictableAssets;//all assets that a user can predict
     address[] assetPriceAggregators;
 
-    mapping(uint256 => mapping(bytes8 => int256)) dayAssetClosePrice; //Closing Price per asset 
+    mapping(uint256 => mapping(uint => int256)) dayAssetClosePrice; //Closing Price per asset 
 
     mapping(uint256 => uint256) dayCloseTime; //Closing Time per asset
     
@@ -33,16 +33,16 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
     uint256 public contractStartTime; //The contract should start at 0000.00 hours
 
 
-    mapping(uint256 => mapping(bytes8 => uint256)) public dayAssetTotalAmount;
+    mapping(uint256 => mapping(uint => uint256)) public dayAssetTotalAmount;
 
 
-    mapping(uint256 => mapping(bytes8 => uint256)) public dayAssetNoOfWinners;
+    mapping(uint256 => mapping(uint => uint256)) public dayAssetNoOfWinners;
     
 
-    mapping(uint256 => mapping(bytes8 => int256[])) public dayAssetPrediction;
+    mapping(uint256 => mapping(uint => int256[])) public dayAssetPrediction;
 
 
-    mapping(uint256 => mapping(bytes8 => address[])) public dayAssetPredictors;
+    mapping(uint256 => mapping(uint => address[])) public dayAssetPredictors;
 
 
     event Predicted(address indexed _placer, int256 _prediction);
@@ -57,10 +57,10 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
 
     address[] public AcceptedTokens;
 
-    mapping(uint128 => mapping(bytes8 => address[])) public dailyAssetWinners;
+    mapping(uint128 => mapping(uint => address[])) public dailyAssetWinners;
 
     //user and their prediction
-    mapping(uint128 => mapping(bytes8 => mapping(address => int256))) public dayAssetUserPrediction;
+    mapping(uint128 => mapping(uint => mapping(address => int256))) public dayAssetUserPrediction;
 
 
     constructor(
@@ -84,23 +84,23 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
         AcceptedTokens.push(_address);
     }
     
-    function addAssetAndAgg(bytes8 _asset, address _aggregator) external onlyOwner {
+    function addAssetAndAgg(uint _asset, address _aggregator) public onlyOwner {
         predictableAssets.push(_asset);
         assetPriceAggregators.push(_aggregator);
     }
 
     function predictClosePrice(
-        bytes8 _asset, 
+        uint _asset, 
         int _prediction, 
-        uint256 _token, /*bytes8 _charity,*/ 
-        address[] calldata swapPairs
+        uint256 _token /*bytes8 _charity,*/ 
+        //[] calldata swapPairs
     ) public allowedAsset(_asset) allowedToken(AcceptedTokens[_token]) 
     {
         require(getTime() <= dayCloseTime[dayCount -1] + 64800 seconds);//After this time, one cannot
         uint256 amount = 10 * 10**18;//the amount we set for the daily close
         // remember to add aprovefunction on ERC20 token
         require(IERC20(AcceptedTokens[_token]).allowance(msg.sender, address(this)) >= amount);
-        if (AcceptedTokens[_token] != Dai) {
+        /*if (AcceptedTokens[_token] != Dai) {
             IERC20(AcceptedTokens[_token]).transferFrom(msg.sender, address(this), amount);//The transfer function on the ERC20 token
             IERC20(AcceptedTokens[_token]).approve(QuickSwap, amount);
             address(QuickSwap).call(
@@ -114,9 +114,9 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
                 )
             );
 
-        } else {
-            IERC20(Dai).transferFrom(msg.sender, address(this), amount);//The transfer function on the ERC20 token
-        }
+        } else {*/
+        IERC20(Dai).transferFrom(msg.sender, address(this), amount);//The transfer function on the ERC20 token
+        //}
 
 
         //IERC20(Dai).approve(address(this), amount);
@@ -165,7 +165,7 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
          return int(answer * 10000000000);
     }
 
-    modifier allowedAsset(bytes8 _asset) {
+    modifier allowedAsset(uint _asset) {
         for(uint i =0; i < predictableAssets.length; i++) {
             require(predictableAssets[i] == _asset);
         }
@@ -181,7 +181,7 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
 
 
 
-    function claimWinnings(uint128 _day, bytes8 _asset) public {
+    function claimWinnings(uint128 _day, uint _asset) public {
         //logic to see if the person had a winning prediction
         require(dayAssetUserPrediction[_day][_asset][msg.sender] == dayAssetClosePrice[_day][_asset]);
         IERC20(Dai).transfer(
