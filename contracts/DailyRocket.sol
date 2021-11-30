@@ -24,9 +24,9 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
     mapping(uint256 => uint256) dayCloseTime; //Closing Time per asset
     
     address constant IBA = 0x9198F13B08E299d85E096929fA9781A1E3d5d827;//aavelending pool
-    address Dai = 0x4F96Fe3b7A6Cf9725f59d353F723c1bDb64CA6Aa;
+    address Dai = 0xBE91b305EBdb0253aBAfe1Da0cDFb0FD9d4fd4B8;
     address QuickSwap = 0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506;
-    address moonSquare = 0xE0AF2f8698638F49b37776B26D27f9e40fDE0249;
+    address moonSquare = 0xF033ff1c065704E6664d4581884578A9FcE44b69;
     
     
 
@@ -91,15 +91,17 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
 
     function predictClosePrice(
         uint _asset, 
-        int _prediction, 
-        uint256 _token /*bytes8 _charity,*/ 
+        int _prediction 
+        /* uint256 _token bytes8 _charity,*/ 
         //[] calldata swapPairs
-    ) public allowedAsset(_asset) allowedToken(AcceptedTokens[_token]) 
-    {
-        require(getTime() <= dayCloseTime[dayCount -1] + 64800 seconds);//After this time, one cannot
-        uint256 amount = 10 * 10**18;//the amount we set for the daily close
+    ) public allowedAsset(_asset) /*allowedToken(AcceptedTokens[_token])*/ 
+    {   
+        if (dayCount > 1) {
+            require(getTime() <= dayCloseTime[dayCount -1] + 64800 seconds);//After this time, one cannot
+        }
+        uint256 amount = 10000000000000000000;//the amount we set for the daily close
         // remember to add aprovefunction on ERC20 token
-        require(IERC20(AcceptedTokens[_token]).allowance(msg.sender, address(this)) >= amount);
+        require(IERC20(Dai).allowance(msg.sender, address(this)) >= amount);
         /*if (AcceptedTokens[_token] != Dai) {
             IERC20(AcceptedTokens[_token]).transferFrom(msg.sender, address(this), amount);//The transfer function on the ERC20 token
             IERC20(AcceptedTokens[_token]).approve(QuickSwap, amount);
@@ -154,7 +156,7 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
 
 
     function getTime() public view returns(uint){
-        AggregatorV3Interface priceFeed = AggregatorV3Interface(0xCeE03CF92C7fFC1Bad8EAA572d69a4b61b6D4640);
+        AggregatorV3Interface priceFeed = AggregatorV3Interface(0xd0D5e3DB44DE05E9F294BB0a3bEEaF030DE24Ada);
         (,,,uint answer,) = priceFeed.latestRoundData();
          return uint(answer * 10000000000);
     }

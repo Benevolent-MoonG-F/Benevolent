@@ -63,7 +63,7 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
     address DAO; //address of the Dao contact
     address flowDistrubuter;
     address constant SWAPADRESS = 0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506;
-    address Dai = 0x4F96Fe3b7A6Cf9725f59d353F723c1bDb64CA6Aa;
+    address Dai = 0xBE91b305EBdb0253aBAfe1Da0cDFb0FD9d4fd4B8;
     address _aaveToken;
     address governanceToken;
     
@@ -175,6 +175,13 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
         _;
     }
 
+    function setMoonPrice(int price) public onlyOwner {
+        roundMoonPrice[coinRound] = price;
+        roundStartTime[coinRound] = getTime();
+        roundStartPrice[coinRound] = getPrice();
+
+    }
+
     function voteForCharity(bytes8 charity) public isWinner {
         roundCharityVotes[coinRound][charity] += 1;
     }
@@ -215,24 +222,19 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
 
    function predictAsset(
         uint256 _start, 
-        uint256 coin, /* integer for the index of the stablecoin in allowedPayments, */
+        /* uint256 coin,  integer for the index of the stablecoin in allowedPayments, */
         uint256 _end,
-        address[] calldata swapPairs
-    ) public allowedToken(allowedPayments[coin]) returns (bytes memory /*, uint[] memory */)
+        int256 amount
+        /*address[] calldata swapPairs*/
+    ) public /* allowedToken( allowedPayments[coin]) returns (bytes memory , uint[] memory )*/
     {
-        int256 amount;
-        uint256 duration = 300 seconds;
-        
-        if (getPrice() > roundStartPrice[coinRound]) {
-            amount = ((getPrice() - roundStartPrice[coinRound]) * 100) + 5 * 10 ** 18;
-        } else {
-            amount  = 5 * 10 ** 18;
-        }
-        require(IERC20(allowedPayments[coin]).allowance(msg.sender, address(this)) >= uint(amount));
-        IERC20(allowedPayments[coin]).transferFrom(msg.sender, address(this), uint(amount));
+        require(amount >= 10000000000000000000);
+        require(IERC20(Dai).allowance(msg.sender, address(this)) >= uint(amount));
+        IERC20(Dai).transferFrom(msg.sender, address(this), uint(amount));
+        /*
         if (allowedPayments[coin] != Dai) {
             IERC20(allowedPayments[coin]).approve(0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff, uint(amount));
-
+            address[] calldata swapPairs = tokenSwaps[coin];
             address(SWAPADRESS).call(
                     abi.encodeWithSignature(
                     "swapTokensForExactTokens(uint, uint, address[], address, uint)",
@@ -244,18 +246,18 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
                 )
             );
         }
+        
 
         IERC20(Dai).approve(IBA, uint(amount));
 
         bytes memory payload =abi.encodeWithSignature("deposit(address, uint, address, uint)", Dai, amount, address(this), 0);//should have a protocal referal to use
         (bool success, bytes memory returnData) = address(IBA).call(payload);
         require(success);
+        */
 
         roundAddressBetsPlaced[coinRound][msg.sender].squareStartTime = _start;
         
-        roundAddressBetsPlaced[coinRound][msg.sender].squareEndTime 
-        = 
-        roundAddressBetsPlaced[coinRound][msg.sender].squareStartTime + duration;
+        roundAddressBetsPlaced[coinRound][msg.sender].squareEndTime  = _end;
         //update all the relevant arrays
         roundPlayerArray[coinRound].push(msg.sender);
         roundStartTimeArray[coinRound].push(_start);
@@ -265,19 +267,19 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
         roundWinnings[coinRound] = (roundTotalStaked[coinRound] * 90)/100;
         emit Predicted(msg.sender, _start, _end);
 
-        return (returnData /*, returnValues */);
+        /* return (returnData , returnValues );*/
 
 
     }
 
     function getPrice() public view returns(int256){
-        AggregatorV3Interface priceFeed = AggregatorV3Interface(0xCeE03CF92C7fFC1Bad8EAA572d69a4b61b6D4640);//returns Link/matic Price 
+        AggregatorV3Interface priceFeed = AggregatorV3Interface(0xd0D5e3DB44DE05E9F294BB0a3bEEaF030DE24Ada);//returns matic Price 
         (,int256 answer,,,) = priceFeed.latestRoundData();
         return int256(answer * 10000000000);
     }
 
     function getTime() public view returns(uint256){
-        AggregatorV3Interface priceFeed = AggregatorV3Interface(0xCeE03CF92C7fFC1Bad8EAA572d69a4b61b6D4640);
+        AggregatorV3Interface priceFeed = AggregatorV3Interface(0xd0D5e3DB44DE05E9F294BB0a3bEEaF030DE24Ada);
         //Matic network
         (,,,uint256 answer,) = priceFeed.latestRoundData();
          return uint256(answer * 10000000000);
