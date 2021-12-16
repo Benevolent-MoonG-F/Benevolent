@@ -5,5 +5,4 @@ __pycache__
 build/
 reports/
 tests/
-Moon.sol
-Day.sol
+Swap.sol
