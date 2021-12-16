@@ -4,7 +4,7 @@ pragma abicoder v2;
 
 import './TransferHelper.sol';
 import './ISwapRouter.sol';
-import './IUniswapV3Factory';
+import './IUniswapV3Factory.sol';
 
 contract SwapExamples {
     // For the scope of these swap examples,
