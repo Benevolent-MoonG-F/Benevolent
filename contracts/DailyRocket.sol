@@ -1,11 +1,4 @@
 //SPDX-License-Identifier: MIT
-
-interface IMoonSquares {
-
-  function addToWinners(address _winner) external;
-
-}
-
 pragma solidity ^0.8.0;
 
 import "../interfaces/DataTypes.sol";
@@ -13,6 +6,7 @@ import "../interfaces/ILendingPoolAddressesProvider.sol";
 import "../interfaces/ILendingPool.sol";
 import "../interfaces/TransferHelper.sol";
 import "../interfaces/ISwapRouter.sol";
+import "../interfaces/IMoonSquares.sol";
 
 import "@chainlink/contracts/src/v0.8/interfaces/KeeperCompatibleInterface.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
