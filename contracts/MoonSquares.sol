@@ -70,19 +70,19 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
 
     //IUniswapV2Router02 public sushiRouter = IUniswapV2Router02(0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506);
 
-    ILendingPoolAddressesProvider provider = ILendingPoolAddressesProvider(
+    ILendingPoolAddressesProvider public provider = ILendingPoolAddressesProvider(
         address(0x88757f2f99175387aB4C6a4b3067c77A695b0349)
     ); 
-    ILendingPool lendingPool = ILendingPool(provider.getLendingPool());
+    ILendingPool public lendingPool = ILendingPool(provider.getLendingPool());
 
     ISwapRouter public immutable swapRouter;
     uint24 public constant poolFee = 3000;
     
 
-    address constant IBA = 0x9198F13B08E299d85E096929fA9781A1E3d5d827; //should be aave contact address or the IBA to be used
-    address DAO; //address of the Dao contact
+    //address constant IBA = 0x9198F13B08E299d85E096929fA9781A1E3d5d827; //should be aave contact address or the IBA to be used
+    //address DAO; //address of the Dao contact
     address flowDistrubuter;
-    address constant SWAPADRESS = 0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506;
+    //address constant SWAPADRESS = 0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506;
     address Dai = 0xFf795577d9AC8bD7D90Ee22b6C1703490b6512FD;
     address _aaveToken;
     address governanceToken;
@@ -152,10 +152,10 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
         
         //set superfluid specific params, receiver, and accepted token in the constructor
         
-        ISuperfluid host,
-        IConstantFlowAgreementV1 cfa,
-        ISuperToken acceptedToken,
-        ISwapRouter _swapRouter
+        ISuperfluid host,//0xF0d7d1D47109bA426B9D8A3Cde1941327af1eea3
+        IConstantFlowAgreementV1 cfa,//0xECa8056809e7e8db04A8fF6e4E82cD889a46FE2F
+        ISuperToken acceptedToken,//0xe3cb950cb164a31c66e32c320a800d477019dcff
+        ISwapRouter _swapRouter//0xE592427A0AEce92De3Edee1F18E0157C05861564
         ) {
         require(address(host) != address(0));
         require(address(cfa) != address(0));
@@ -204,7 +204,7 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
         _;
     }
 
-    function setMoonPrice(int price, string memory market) public onlyOwner {
+    function setMoonPrice(int price, string memory market) external onlyOwner {
         roundCoinMoonPrice[coinRound[market]][market] = price;
         roundCoinStartTime[coinRound[market]][market] = getTime();
         roundCoinStartPrice[coinRound[market]][market] = getPrice(market);
@@ -251,16 +251,17 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
    function predictAsset(
         uint256 _start, 
         address coin,  /*asset to convert to dai */
-        uint256 _end,
-        int256 amount,
+        //uint256 _end,
         string memory market
         /*address[] calldata swapPairs*/
     ) public allowedToken(coin) /*returns (bytes memory , uint[] memory )*/
     {
-        require(amount >= 10000000000000000000);
+        uint amount = 10000000000000000000;
+        uint duration = 1800 seconds;
+        
         if (coin != Dai) {
-            require(IERC20(coin).allowance(msg.sender, address(this)) >= uint(amount));
-            IERC20(coin).transferFrom(msg.sender, address(this), uint(amount));
+            require(IERC20(coin).allowance(msg.sender, address(this)) >= amount);
+            //IERC20(coin).transferFrom(msg.sender, address(this), uint(amount));
 
             TransferHelper.safeTransferFrom(coin, msg.sender, address(this), amount);
 
@@ -273,7 +274,7 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
                     tokenIn: coin,
                     tokenOut: Dai,
                     fee: poolFee,
-                    recipient: msg.sender,
+                    recipient: address(this),
                     deadline: block.timestamp,
                     amountOut: amount,
                     amountInMaximum: amountInMaximum,
@@ -281,70 +282,56 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
                 });
 
             // Executes the swap returning the amountIn needed to spend to receive the desired amountOut.
-            amountIn = swapRouter.exactOutputSingle(params);
+            uint amountIn = swapRouter.exactOutputSingle(params);
 
             // For exact output swaps, the amountInMaximum may not have all been spent.
             // If the actual amount spent (amountIn) is less than the specified maximum amount, we must refund the msg.sender and approve the swapRouter to spend 0.
             if (amountIn < amountInMaximum) {
-                TransferHelper.safeApprove(DAI, address(swapRouter), 0);
-                TransferHelper.safeTransfer(DAI, msg.sender, amountInMaximum - amountIn);
+                TransferHelper.safeApprove(Dai, address(swapRouter), 0);
+                TransferHelper.safeTransfer(Dai, msg.sender, amountInMaximum - amountIn);
             }
 
-           /*
-            address[] memory path = new address[](2);
-            path[0] = coin;
-            path[1] = Dai;
-            uint amountOut = 10000000000000000000;
-            uint amountIn = sushiRouter.getAmountsIn(
-                amountOut,
-                path
-            )[0];
-            
-        
-            IERC20(coin).approve(address(sushiRouter), amountIn);
-
-            sushiRouter.swapExactTokensForTokens(
-                amountIn, 
-                amountOut,
-                path, 
-                msg.sender, 
-                block.timestamp + 60
-            );
-            */
         } else {
-            require(IERC20(Dai).allowance(msg.sender, address(this)) >= uint(amount));
-            IERC20(Dai).transferFrom(msg.sender, address(this), uint(amount));
+            require(IERC20(Dai).allowance(msg.sender, address(this)) >= amount);
+            IERC20(Dai).transferFrom(msg.sender, address(this), amount);
         }
-
-        IERC20(Dai).approve(address(lendingPool), uint(amount));
-        lendingPool.deposit(
-            Dai,
-            uint(amount),
-            address(this),
-            0
-        );
+        //require(IERC20(Dai).allowance(msg.sender, address(this)) >= amount);
+        //IERC20(Dai).transferFrom(msg.sender, address(this), amount);
 
         roundCoinAddressBetsPlaced[coinRound[market]][market][msg.sender].squareStartTime = _start;
         
-        roundCoinAddressBetsPlaced[coinRound[market]][market][msg.sender].squareEndTime  = _end;
+        roundCoinAddressBetsPlaced[coinRound[market]][market][msg.sender].squareEndTime  = (_start + duration);
         //update all the relevant arrays
         roundCoinPlayerArray[coinRound[market]][market].push(msg.sender);
         roundCoinStartTimeArray[coinRound[market]][market].push(_start);
-        roundCoinEndTimeArray[coinRound[market]][market].push(_end);
+        roundCoinEndTimeArray[coinRound[market]][market].push((_start + duration));
         //update the total value played
-        roundCoinTotalStaked[coinRound[market]][market] += uint(amount);
-        roundCoinWinnings[coinRound[market]][market] = (roundCoinTotalStaked[coinRound[market]][market] * 90)/100;
-        emit Predicted(msg.sender, _start, _end);
+        roundCoinTotalStaked[coinRound[market]][market] += amount;
+        roundCoinWinnings[coinRound[market]][market] += 9000000000000000;
+        aaveDeposit(amount);
+        emit Predicted(msg.sender, _start, (_start + duration));
+    }
+
+
+
+    function aaveDeposit(uint amount) private {
+        IERC20(Dai).approve(address(lendingPool), amount);
+        lendingPool.deposit(
+            Dai,
+            amount,
+            address(this),
+            0
+        );
     }
 
     function getPrice(string memory market) public view returns(int256){
-        AggregatorV3Interface priceFeed = AggregatorV3Interface(assetToAggregator[market]);//returns matic Price 
+        AggregatorV3Interface priceFeed = AggregatorV3Interface(assetToAggregator[market]); 
         (,int256 answer,,,) = priceFeed.latestRoundData();
         return int256(answer);
     }
 
     function getTime() public view returns(uint256){
-        AggregatorV3Interface priceFeed = AggregatorV3Interface(0xd0D5e3DB44DE05E9F294BB0a3bEEaF030DE24Ada);
+        AggregatorV3Interface priceFeed = AggregatorV3Interface(0x6135b13325bfC4B00278B4abC5e20bbce2D6580e);
         //Matic network
         (,,,uint256 answer,) = priceFeed.latestRoundData();
          return uint256(answer);
@@ -397,11 +384,6 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
         setwinningIndex(market);
         withdrawRoundFundsFromIba(market);
     }
-
-    /*function getRound() public view returns(uint128) {
-        return coinRound;
-    }
-    */
 
     function checkUpkeep(
         bytes calldata checkData
@@ -488,6 +470,7 @@ function performUpkeep(bytes calldata performData) external override {
             interest,
             address(this)
         );
+        IERC20(Dai).approve(address(_acceptedToken), interest);
         ISuperToken(_acceptedToken).upgrade(interest);
         return(interest);
         //remember to upgrade the dai for flow
