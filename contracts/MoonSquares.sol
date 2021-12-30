@@ -226,18 +226,21 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
         _;
     }
 
+    //adds the Dao Token 
     function addGovernanceToken(address _gtAdress) public isAllowedContract {
         governanceToken = _gtAdress;
     }
     
+    //adds winners to the charity voting pool
     function addToWinners(address _winner) external isAllowedContract {
         winers[monthCount].push(_winner);
     }
 
+    //adds the flow distributor
     function addFlowDistributor(address addr) public onlyOwner {
         flowDistrubuter = addr;
     }
-
+    //changes the receiving charity in the flow distributor
     function changeReceiverTo(address _charityAddress) private returns (bytes memory) {
         bytes memory payload = abi.encodeWithSignature(
             "changeReceiverAdress(address)",
@@ -248,6 +251,7 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
         return returnData;
     }
 
+    //predicts an asset
    function predictAsset(
         uint256 _start, 
         address coin,  /*asset to convert to dai */
@@ -314,7 +318,7 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
 
 
 
-    function aaveDeposit(uint amount) private {
+    function aaveDeposit(uint amount) internal {
         IERC20(Dai).approve(address(lendingPool), amount);
         lendingPool.deposit(
             Dai,
@@ -324,12 +328,14 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
         );
     }
 
+    //gets the price of the asset denoted by market
     function getPrice(string memory market) public view returns(int256){
         AggregatorV3Interface priceFeed = AggregatorV3Interface(assetToAggregator[market]); 
         (,int256 answer,,,) = priceFeed.latestRoundData();
         return int256(answer);
     }
 
+    //gets the current time
     function getTime() public view returns(uint256){
         AggregatorV3Interface priceFeed = AggregatorV3Interface(0x6135b13325bfC4B00278B4abC5e20bbce2D6580e);
         //Matic network
@@ -337,6 +343,7 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
          return uint256(answer);
     }
 
+    //it 
     function setwinningIndex(string memory market) internal {
         /* we iterate over the squareStartTimeArray(of squareStartTime) and the squareEndTimeArray (of squareEndTime) to assertain that the winning time 
            is either equal to them or more than the squareStartTime but less than the squareEndTime

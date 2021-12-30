@@ -119,7 +119,6 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
             TransferHelper.safeTransferFrom(token, msg.sender, address(this), amount);
 
             // Approve the router to spend the specifed `amountInMaximum` of DAI.
-            // In production, you should choose the maximum amount to spend based on oracles or other data sources to acheive a better swap.
             TransferHelper.safeApprove(token, address(swapRouter), amount);
             uint amountInMaximum = 15000000000000000000;
             ISwapRouter.ExactOutputSingleParams memory params =
