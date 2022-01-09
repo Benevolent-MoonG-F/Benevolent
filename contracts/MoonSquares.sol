@@ -2,9 +2,10 @@
 pragma solidity ^0.8.0;
 pragma abicoder v2;
 
+import "../interfaces/TransferHelper.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/KeeperCompatibleInterface.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+//import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
@@ -19,19 +20,18 @@ import {
     ISuperApp,
     ISuperAgreement,
     SuperAppDefinitions
-} from "@superfluid-finance/ethereum-contracts/contracts/interfaces/superfluid/ISuperfluid.sol";
+} from "../supercon/interfaces/superfluid/ISuperfluid.sol";
 
 import {
     IConstantFlowAgreementV1
-} from "@superfluid-finance/ethereum-contracts/contracts/interfaces/agreements/IConstantFlowAgreementV1.sol";
+} from "../supercon/interfaces/agreements/IConstantFlowAgreementV1.sol";
 
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 import {
     SuperAppBase
-} from "@superfluid-finance/ethereum-contracts/contracts/apps/SuperAppBase.sol";
-import "../interfaces/TransferHelper.sol";
+} from "../supercon/apps/SuperAppBase.sol";
 import "../interfaces/ISwapRouter.sol";
 
 

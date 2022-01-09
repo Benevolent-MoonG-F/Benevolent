@@ -42,7 +42,8 @@ def deploy_governor():
     governance_token = (
         BMSGToken.deploy(
             fDaix,
-            host,                ida,
+            host,
+            ida,
             {"from": account},
             publish_source=config["networks"][network.show_active()].get(
                 "verify", False
@@ -53,7 +54,7 @@ def deploy_governor():
     )
     governance_token.delegate(account, {"from": account})
     print(f"Checkpoints: {governance_token.numCheckpoints(account)}")
-    governance_time_lock = governance_time_lock = (
+    governance_time_lock = (
         GovernanceTimeLock.deploy(
             MIN_DELAY,
             [],

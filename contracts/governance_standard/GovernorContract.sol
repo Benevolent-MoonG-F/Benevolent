@@ -2,7 +2,7 @@
 pragma solidity ^0.8.2;
 
 import "@openzeppelin/contracts/governance/Governor.sol";
-import "@openzeppelin/contracts/governance/extensions/GovernorSettings.sol";
+import "./GovernorSettings.sol";
 import "@openzeppelin/contracts/governance/extensions/GovernorCountingSimple.sol";
 import "@openzeppelin/contracts/governance/extensions/GovernorVotes.sol";
 import "@openzeppelin/contracts/governance/extensions/GovernorVotesQuorumFraction.sol";
@@ -75,7 +75,7 @@ contract MyGovernor is Governor, GovernorSettings, GovernorCountingSimple, Gover
     function proposalThreshold()
         public
         view
-        override(Governor, GovernorSettings)
+        override(/*Governor,*/ GovernorSettings)
         returns (uint256)
     {
         return super.proposalThreshold();

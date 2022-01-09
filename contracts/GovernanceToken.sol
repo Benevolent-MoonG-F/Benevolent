@@ -5,16 +5,19 @@ pragma solidity ^0.8.0;
 import {
     ISuperfluid,
     ISuperToken,
-    SuperAppBase,
     SuperAppDefinitions
-} from "@superfluid-finance/ethereum-contracts/contracts/apps/SuperAppBase.sol";
+} from "../supercon/interfaces/superfluid/ISuperfluid.sol";
 import {
     IInstantDistributionAgreementV1
-} from "@superfluid-finance/ethereum-contracts/contracts/interfaces/agreements/IInstantDistributionAgreementV1.sol";
+} from "../supercon/interfaces/agreements/IInstantDistributionAgreementV1.sol";
 
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol";
+
+import {SuperAppBase} from "../supercon/apps/SuperAppBase.sol";
+
+
 
 contract BMSGToken is ERC20Votes, SuperAppBase, Ownable {
     uint256 public s_maxSupply = 100000000000000000000000000;
