@@ -33,6 +33,8 @@ import {
     SuperAppBase
 } from "../supercon/apps/SuperAppBase.sol";
 import "../interfaces/ISwapRouter.sol";
+import "../interfaces/IRedirect.sol";
+import "../interfaces/IGovernanceToken.sol";
 
 
 //make it a super app to allow using superfluid flows and instant distribution
@@ -81,11 +83,12 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
 
     //address constant IBA = 0x9198F13B08E299d85E096929fA9781A1E3d5d827; //should be aave contact address or the IBA to be used
     //address DAO; //address of the Dao contact
-    address flowDistrubuter;
+    IRedirect flowDistrubuter;
+    IGovernanceToken governanceToken;
     //address constant SWAPADRESS = 0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506;
     address Dai = 0xFf795577d9AC8bD7D90Ee22b6C1703490b6512FD;
     address _aaveToken;
-    address governanceToken;
+
     
     mapping (uint256 => mapping(string => int256)) public roundCoinStartPrice;
 
@@ -133,15 +136,17 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
     
     mapping (uint128 => address[]) public winers;
 
-    mapping (uint256 => mapping (string => address[])) roundCoinPlayerArray;
+    mapping (uint256 => mapping (string => address[])) private roundCoinPlayerArray;
 
-    mapping (uint256 => mapping (string => uint256[])) roundCoinStartTimeArray;
+    mapping (uint256 => mapping (string => uint256[])) private roundCoinStartTimeArray;
 
-    mapping (uint256 => mapping (string => uint256[])) roundCoinEndTimeArray;
+    mapping (uint256 => mapping (string => uint256[])) private  roundCoinEndTimeArray;
     
-    mapping(uint256 => mapping(string => uint256[])) public roundCoinWinningIndex;
+    mapping(uint256 => mapping(string => uint256[])) private roundCoinWinningIndex;
 
     mapping (uint256 => mapping( string => mapping (address => Bet))) public roundCoinAddressBetsPlaced;
+
+    mapping(uint256 => mapping(string => bool)) public roundCoinWinningIsWinner;
 
     mapping (address => uint256) totalAmountPlayed;//shows how much every player has placed
 
@@ -227,7 +232,7 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
     }
 
     //adds the Dao Token 
-    function addGovernanceToken(address _gtAdress) public isAllowedContract {
+    function addGovernanceToken(IGovernanceToken _gtAdress) public isAllowedContract {
         governanceToken = _gtAdress;
     }
     
@@ -237,18 +242,8 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
     }
 
     //adds the flow distributor
-    function addFlowDistributor(address addr) public onlyOwner {
+    function addFlowDistributor(IRedirect addr) public onlyOwner {
         flowDistrubuter = addr;
-    }
-    //changes the receiving charity in the flow distributor
-    function changeReceiverTo(address _charityAddress) private returns (bytes memory) {
-        bytes memory payload = abi.encodeWithSignature(
-            "changeReceiverAdress(address)",
-            _charityAddress
-        );
-        (bool success, bytes memory returnData) = address(flowDistrubuter).call(payload);
-        require(success);
-        return returnData;
     }
 
     //predicts an asset
@@ -365,6 +360,13 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
         //since squares will be owned by more than one person, we set the index to allow us to delagate the claiming reward function to the user.
     }
 
+    function isAwiner(uint256 _round, string memory market, address checkeAddress) public view returns(bool) {
+        for(uint i = 0; i< roundCoinWinningIndex[_round][market].length; i++){
+            uint winningIndex = roundCoinWinningIndex[_round][market][1];
+            require(roundCoinPlayerArray[_round][market][winningIndex] == checkeAddress);
+            return true;
+        }
+    }
     //should use superflid's flow if its just one user & instant distribution if there are several winners
 
      function givePrize( string memory market) private {
@@ -440,7 +442,7 @@ function performUpkeep(bytes calldata performData) external override {
                 roundVoteResults[monthCount] = charityAddress[i];
             }
         }
-        changeReceiverTo(roundVoteResults[monthCount]);
+        flowDistrubuter.changeReceiverAdress(roundVoteResults[monthCount]);
         //return charities[i];
     }
 
@@ -456,17 +458,12 @@ function performUpkeep(bytes calldata performData) external override {
         //Withdraws Funds from the predictions
     }
 
-    function distributeToMembers() private returns (bytes memory) {
+    function distributeToMembers() private {
         require(monthCount != 0);
-        uint256 cashAmount = _acceptedToken.balanceOf(governanceToken);
-        bytes memory payload = abi.encodeWithSignature(
-            "distribute(uint256)",
+        uint256 cashAmount = _acceptedToken.balanceOf(address(governanceToken));
+        governanceToken.distribute(
             cashAmount
         );
-        (bool success, bytes memory returnData) = address(governanceToken).call(payload);
-        require(success);
-        return returnData;
-
     }
 
     function withdrawInterest(address aaveToken) private returns(uint) {
@@ -484,21 +481,19 @@ function performUpkeep(bytes calldata performData) external override {
 
     }
     //distributes the Interest Earned on the round to members of the Dao
-    function flowToPaymentDistributer(/*uint256 _round, bytes calldata ctx */) private returns(bytes memory newCtx){
+    function flowToPaymentDistributer() private {
         //Flows interest earned from the protocal to the redirectAll contract that handles distribution
-        //newCtx = ctx;
             //Flow Winnings
-        (newCtx, ) = _host.callAgreementWithContext(
+        _host.callAgreement(
             _cfa,
             abi.encodeWithSelector(
                 _cfa.createFlow.selector,
                 _acceptedToken,
-                flowDistrubuter,//address to the distributer that sends funds to charity and Dao
+                address(flowDistrubuter),//address to the distributer that sends funds to charity and Dao
                 (roundInterestEarned[monthCount] / 30 days), //should be the total amount of Interest withdrawnfrom the IBA divided by the number of seconds in the withdrawal interval
                 new bytes(0) // placeholder
             ),
-            "0x",
-            newCtx
+            "0x"
         );
         monthCount += 1;
     }

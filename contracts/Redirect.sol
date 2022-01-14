@@ -21,7 +21,7 @@ contract RedirectAll is SuperAppBase, Ownable {
     ISuperfluid private _host; // host
     IConstantFlowAgreementV1 private _cfa; // the stored constant flow agreement class address
     ISuperToken private _acceptedToken; // accepted token
-    address[] public _receiver;
+    address[2] public _receiver;
     address MoonSquareAddress;
 
     constructor(
@@ -42,7 +42,7 @@ contract RedirectAll is SuperAppBase, Ownable {
         _acceptedToken = acceptedToken;
         MoonSquareAddress = moon;
         //_receiver.push(dev);
-        _receiver.push(dao);
+        _receiver[0] = dao;
 
         uint256 configWord =
             SuperAppDefinitions.APP_LEVEL_FINAL |
@@ -53,12 +53,6 @@ contract RedirectAll is SuperAppBase, Ownable {
         _host.registerApp(configWord);
     }
 
-    function addReceiver(address _dev) public onlyOwner {
-        require(_receiver.length < 3);
-        _receiver.push(_dev);
-    }
-
-
     /**************************************************************************
      * Redirect Logic
      *************************************************************************/
@@ -67,16 +61,14 @@ contract RedirectAll is SuperAppBase, Ownable {
         external view
         returns (
             uint256 startTime,
-            address[] memory receiver,
+            address firstReceiver,
+            address secondReceiver,
             int96 flowRate
         )
     {
-        for (uint i = 0; i < _receiver.length; i++){
-            if (_receiver[i] != address(0)) {
-                (startTime, flowRate,,) = _cfa.getFlow(_acceptedToken, address(this), _receiver[i]);
-                receiver = _receiver;
-            }
-        }
+        (startTime, flowRate,,) = _cfa.getFlow(_acceptedToken, address(this), _receiver[1]);
+        firstReceiver = _receiver[0];
+        secondReceiver = _receiver[1];
 
     }
 
@@ -116,7 +108,7 @@ contract RedirectAll is SuperAppBase, Ownable {
                     _cfa.updateFlow.selector,
                     _acceptedToken,
                     _receiver[i],
-                    (inFlowRate/3),
+                    (inFlowRate/2),
                     new bytes(0) // placeholder
                 ),
                 "0x",
@@ -130,7 +122,7 @@ contract RedirectAll is SuperAppBase, Ownable {
                       _cfa.createFlow.selector,
                       _acceptedToken,
                       _receiver[i],
-                      (inFlowRate/3),
+                      (inFlowRate/2),
                       new bytes(0) // placeholder
                   ),
                   "0x",
@@ -154,44 +146,40 @@ contract RedirectAll is SuperAppBase, Ownable {
         require(newReceiver != address(0), "New receiver is zero address");
         // @dev because our app is registered as final, we can't take downstream apps
         require(!_host.isApp(ISuperApp(newReceiver)), "New receiver can not be a superApp");
-        for (uint i=0; i< _receiver.length; i++) {
-            require(newReceiver != _receiver[i]);
-            if (newReceiver == _receiver[i]) return ;
-    
-        
+        require(newReceiver != _receiver[0] || newReceiver != _receiver[1]);        
         // @dev delete flow to old receiver
-        
-            (,int96 outFlowRate,,) = _cfa.getFlow(_acceptedToken, address(this), _receiver[0]); //CHECK: unclear what happens if flow doesn't exist.
-            if(outFlowRate > 0){
-              _host.callAgreement(
-                  _cfa,
-                  abi.encodeWithSelector(
-                      _cfa.deleteFlow.selector,
-                      _acceptedToken,
-                      address(this),
-                      _receiver[2],
-                      new bytes(0)
-                  ),
-                  "0x"
-              );
-              // @dev create flow to new receiver
-              _host.callAgreement(
-                  _cfa,
-                  abi.encodeWithSelector(
-                      _cfa.createFlow.selector,
-                      _acceptedToken,
-                      newReceiver,
-                      (_cfa.getNetFlow(_acceptedToken, address(this))/3),
-                      new bytes(0)
-                  ),
-                  "0x"
-              );
-            }
-            // @dev set global receiver to new receiver
-            _receiver[3] = newReceiver;
     
-            emit ReceiverChanged(_receiver[2]);
+        (,int96 outFlowRate,,) = _cfa.getFlow(_acceptedToken, address(this), _receiver[0]); //CHECK: unclear what happens if flow doesn't exist.
+        if(outFlowRate > 0){
+          _host.callAgreement(
+              _cfa,
+              abi.encodeWithSelector(
+                  _cfa.deleteFlow.selector,
+                  _acceptedToken,
+                  address(this),
+                  _receiver[1],
+                  new bytes(0)
+              ),
+              "0x"
+          );
+          _receiver[1] = newReceiver;
+          // @dev create flow to new receiver
+          _host.callAgreement(
+              _cfa,
+              abi.encodeWithSelector(
+                  _cfa.createFlow.selector,
+                  _acceptedToken,
+                  _receiver[1],
+                  (_cfa.getNetFlow(_acceptedToken, address(this))/3),
+                  new bytes(0)
+              ),
+              "0x"
+          );
         }
+        // @dev set global receiver to new receiver
+        _receiver[1] = newReceiver;
+
+        emit ReceiverChanged(_receiver[1]);
     }
 
     /**************************************************************************
