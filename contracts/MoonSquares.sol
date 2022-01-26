@@ -361,11 +361,18 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
     }
 
     function isAwiner(uint256 _round, string memory market, address checkeAddress) public view returns(bool) {
-        for(uint i = 0; i< roundCoinWinningIndex[_round][market].length; i++){
-            uint winningIndex = roundCoinWinningIndex[_round][market][1];
-            require(roundCoinPlayerArray[_round][market][winningIndex] == checkeAddress);
-            return true;
-        }
+        require(
+            roundCoinAddressBetsPlaced[_round][market][checkeAddress].squareStartTime
+            <=
+            roundCoinWinningTime[_round][market]
+        );
+        require(
+            roundCoinAddressBetsPlaced[_round][market][checkeAddress].squareEndTime
+            >=
+            roundCoinWinningTime[_round][market]
+        );
+        return true;
+
     }
     //should use superflid's flow if its just one user & instant distribution if there are several winners
 

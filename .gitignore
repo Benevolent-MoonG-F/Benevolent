@@ -2,9 +2,7 @@ __pycache__
 .env
 .history
 .hypothesis/
-build/contracts/dependencies
-build/deployments
-build/interfaces
+build/
 reports/
 tests/
 Swap.sol
