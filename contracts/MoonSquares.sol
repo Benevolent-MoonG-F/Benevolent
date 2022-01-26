@@ -108,6 +108,15 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
     //time when the price is first hit 
     mapping (uint256 => mapping(string => uint256)) public roundCoinWinningTime;
 
+    mapping(uint256 => mapping(string => RoundInfo)) public roundInfo;
+    struct RoundInfo {
+        int256 moonPrice;
+        uint256 Winnings;
+        uint256 startPrice;
+        uint256 totalStaked;
+        uint256 winningTime;
+    }
+
     uint public totalStaked;
     //sample bet
     //structure of the bet
@@ -357,6 +366,7 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
     }
 
     function isAwiner(uint256 _round, string memory market, address checkeAddress) public view returns(bool) {
+        require(roundCoinWinningTime[_round][market] != 0);
         require(
             roundCoinAddressBetsPlaced[_round][market][checkeAddress].squareStartTime
             <=
@@ -367,6 +377,7 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
             >=
             roundCoinWinningTime[_round][market]
         );
+
         return true;
 
     }

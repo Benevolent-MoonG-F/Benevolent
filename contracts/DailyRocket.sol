@@ -223,6 +223,7 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
         string memory _asset,
         address checked
     ) public view returns(bool){
+        require(dayAssetClosePrice[_day][_asset] != 0);
         require(dayAssetUserPrediction[_day][_asset][checked].prediction == dayAssetClosePrice[_day][_asset]);
         return true;
     }
