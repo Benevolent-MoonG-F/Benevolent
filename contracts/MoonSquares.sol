@@ -108,12 +108,13 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
     //time when the price is first hit 
     mapping (uint256 => mapping(string => uint256)) public roundCoinWinningTime;
 
-    mapping(uint256 => mapping(string => RoundInfo)) public roundInfo;
+    mapping(uint256 => mapping(string => RoundInfo)) public roundCoinInfo;
     struct RoundInfo {
         int256 moonPrice;
-        uint256 Winnings;
-        uint256 startPrice;
+        uint256 winnings;
+        int256 startPrice;
         uint256 totalStaked;
+        uint256 startTime;
         uint256 winningTime;
     }
 
@@ -218,9 +219,24 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
         roundCoinMoonPrice[coinRound[market]][market] = price;
         roundCoinStartTime[coinRound[market]][market] = getTime();
         roundCoinStartPrice[coinRound[market]][market] = getPrice(market);
+        roundCoinInfo[coinRound[market]][market] = RoundInfo(
+            price,
+            0,
+            getPrice(market),
+            0,
+            getTime(),
+            0
+        );
 
     }
-
+    /*
+    moonPrice
+ Winnings
+ startPrice
+ totalStaked
+ startTime
+ winningTime
+     */
     function voteForCharity(bytes8 charity) public isWinner {
         roundCharityVotes[monthCount][charity] += 1;
     }
@@ -299,8 +315,6 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
             require(IERC20(Dai).allowance(msg.sender, address(this)) >= amount);
             IERC20(Dai).transferFrom(msg.sender, address(this), amount);
         }
-        //require(IERC20(Dai).allowance(msg.sender, address(this)) >= amount);
-        //IERC20(Dai).transferFrom(msg.sender, address(this), amount);
 
         roundCoinAddressBetsPlaced[coinRound[market]][market][msg.sender].squareStartTime = _start;
         
@@ -312,6 +326,8 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
         //update the total value played
         roundCoinTotalStaked[coinRound[market]][market] += amount;
         roundCoinWinnings[coinRound[market]][market] += 9000000000000000;
+        roundCoinInfo[coinRound[market]][market].winnings += 9000000000000000;
+        roundCoinInfo[coinRound[market]][market].totalStaked += amount;
         aaveDeposit(amount);
         emit Predicted(msg.sender, _start, (_start + duration));
     }
@@ -404,6 +420,7 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
 
     function setTime(string memory market) private {
         roundCoinWinningTime[coinRound[market]][market] = getTime();
+        roundCoinInfo[coinRound[market]][market].winningTime = getTime();
         setwinningIndex(market);
         withdrawRoundFundsFromIba(market);
     }
