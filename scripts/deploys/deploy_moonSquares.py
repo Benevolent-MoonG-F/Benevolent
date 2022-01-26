@@ -1,4 +1,4 @@
-from brownie import MoonSquares, DailyRocket, RedirectAll, BMSGToken, GovernanceTimeLock, MyGovernor, config, network, convert
+from brownie import interfaces, MoonSquares, DailyRocket, RedirectAll, BMSGToken, GovernanceTimeLock, MyGovernor, config, network, convert
 from scripts.helpful_scripts import get_account
 from web3 import Web3, constants
 
@@ -16,23 +16,58 @@ def main():
     moonsquare()
 
 def moonsquare():
+    link = interfaces.LinkTokenInterface("0xa36085F69e2889c224210F603D836748e7dC0088")
     account = get_account()
     box = MoonSquares.deploy(
         host,
         cfa,
         fDaix,
         swapRouter,
-        {"from": account}
+        {"from": account},
+        publish_source=True
     )
     boxAddress = box.address
+    link.tranfer(
+        boxAddress,
+        convert.to_uint("10000000000000000000"),
+        {"from": account}
+    )
+    box.getTime()
+    box.addpaymentToken(
+        DAI,
+        {"from": account}
+    )
 
+    box.addAssetsAndAggregators(
+        convert.to_string("BTC"),
+        convert.to_address("0x6135b13325bfC4B00278B4abC5e20bbce2D6580e"),
+        {"from": account}
+
+    )
     dr = DailyRocket.deploy(
         DAI,
         swapRouter,
         boxAddress,
+        {"from": account},
+        publish_source=True
+    )
+    link.tranfer(
+        dr.address,
+        convert.to_uint("10000000000000000000"),
         {"from": account}
     )
 
+    dr.addpaymentToken(
+        DAI,
+        {"from": account}
+    )
+
+    dr.addAssetsAndAggregators(
+        convert.to_string("BTC"),
+        convert.to_address("0x6135b13325bfC4B00278B4abC5e20bbce2D6580e"),
+        {"from": account}
+
+    )
     governance_token = (
         BMSGToken.deploy(
             fDaix,
@@ -56,7 +91,7 @@ def moonsquare():
             [],
             {"from": account},
             publish_source=config["networks"][network.show_active()].get(
-                "verify", False
+                "verify", True
             ),
         )
         if len(GovernanceTimeLock) <= 0
@@ -69,7 +104,7 @@ def moonsquare():
         #VOTING_PERIOD,
         #VOTING_DELAY,
         {"from": account},
-        publish_source=config["networks"][network.show_active()].get("verify", False),
+        publish_source=config["networks"][network.show_active()].get("verify", True),
     )
     # Now, we set the roles...
     # Multicall would be great here ;)
@@ -91,7 +126,8 @@ def moonsquare():
         fDaix,
         daoAddress,
         boxAddress,
-        {"from": account}
+        {"from": account},
+        publish_source=True
     )
     #tx = box.transferOwnership(GovernanceTimeLock[-1], {"from": account})
     #tx.wait(1)

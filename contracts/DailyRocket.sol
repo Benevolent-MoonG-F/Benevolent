@@ -207,6 +207,15 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
         );
         
     }
+
+    function isAwinner(
+        uint128 _day,
+        string memory _asset,
+        address checked
+    ) public view returns(bool){
+        require(dayAssetUserPrediction[_day][_asset][checked] == dayAssetClosePrice[_day][_asset]);
+        return true;
+    }
     
     function checkUpkeep(bytes calldata checkData) external view override returns (bool upkeepNeeded, bytes memory performData) {
         if (dayCloseTime[dayCount] + 86400 seconds == getTime()){
@@ -234,7 +243,7 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
     }
     
     //sends non winnings to an interest bearibg account 
-    function sendToIba() private onlyOwner {
+    function sendToIba() private {
         require(getTime() > dayCloseTime[dayCount -1] + 64800 seconds);
         for (uint128 i = 0; i < predictableAssets.length; i++) {
             uint amount = ((dayAssetTotalAmount[dayCount][predictableAssets[i]]) * 10/100);

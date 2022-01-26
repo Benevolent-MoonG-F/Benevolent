@@ -13,6 +13,7 @@ from brownie import (
     network,
     accounts,
     chain,
+    interfaces
 )
 from web3 import Web3, constants
 
@@ -38,6 +39,7 @@ cfa = 0x49e565Ed1bdc17F3d220f72DF0857C26FA83F873
 
 
 def deploy_governor():
+    link = interfaces.LinkTokenInterface("0x6c75906e817ac7618053ED35903Bb4C384AD4f35")
     account = get_account()
     governance_token = (
         BMSGToken.deploy(
@@ -101,7 +103,7 @@ def deloyMoonSquares():
         fDaix,
         {"from": account}
     )
-    tx = box.transferOwnership(GovernanceTimeLock[-1], {"from": account})
+    tx = box.transferOwnership(GovernanceTimeLock[-1], {"from": account}, publish_source=True)
     tx.wait(1)
 
 

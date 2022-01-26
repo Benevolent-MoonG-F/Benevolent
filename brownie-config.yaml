@@ -36,7 +36,7 @@ networks:
     jobId: '29fa9aa13bf1468788b7cc4a500a45b8'
     eth_usd_price_feed: '0x9326BFA02ADD2366b30bacB125260Af641031331'
     # Change to True if you have an Etherscan API key and want to verify
-    verify: False
+    verify: True
     update_interval: 60
   ganache:
     keyhash: '0x6c3699283bda56ad74f6b855546325b68d482e983852a7a82979cc4807b641f4'
