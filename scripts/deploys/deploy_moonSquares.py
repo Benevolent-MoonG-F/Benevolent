@@ -1,4 +1,4 @@
-from brownie import interfaces, MoonSquares, DailyRocket, RedirectAll, BMSGToken, GovernanceTimeLock, MyGovernor, config, network, convert
+from brownie import interface, MoonSquares, DailyRocket, RedirectAll, BMSGToken, GovernanceTimeLock, MyGovernor, config, network, convert
 from scripts.helpful_scripts import get_account
 from web3 import Web3, constants
 
@@ -16,58 +16,73 @@ def main():
     moonsquare()
 
 def moonsquare():
-    link = interfaces.LinkTokenInterface("0xa36085F69e2889c224210F603D836748e7dC0088")
+    dai = interface.IERC20(DAI)
+    link = interface.LinkTokenInterface("0xa36085F69e2889c224210F603D836748e7dC0088")
     account = get_account()
-    box = MoonSquares.deploy(
-        host,
-        cfa,
-        fDaix,
-        swapRouter,
-        {"from": account},
-        publish_source=True
+    box = (MoonSquares.deploy(
+            host,
+            cfa,
+            fDaix,
+            swapRouter,
+            {"from": account},
+            publish_source=True
+        )
+        if len(MoonSquares) <= 0
+        else MoonSquares[-1]
     )
     boxAddress = box.address
-    link.tranfer(
-        boxAddress,
-        convert.to_uint("10000000000000000000"),
-        {"from": account}
-    )
-    box.getTime()
-    box.addpaymentToken(
-        DAI,
-        {"from": account}
-    )
+    #link.transfer(
+    #    boxAddress,
+    #    convert.to_uint("10000000000000000000"),
+    #    {"from": account}
+    #)
+    #box.getTime()
+    #box.addpaymentToken(
+    #    DAI,
+    #    {"from": account}
+    #)
 
-    box.addAssetsAndAggregators(
+    #box.addAssetsAndAggregators(
+    #    convert.to_string("BTC"),
+    #    convert.to_address("0x6135b13325bfC4B00278B4abC5e20bbce2D6580e"),
+    #    {"from": account}
+    #)
+
+    #box.setMoonPrice(
+    #    4777468576992,
+    #    "BTC",
+    #    {"from": account}
+    #)
+
+    dr = (DailyRocket.deploy(
+            DAI,
+            swapRouter,
+            boxAddress,
+            {"from": account},
+            publish_source=True
+        )
+        if len(DailyRocket) <= 0
+        else DailyRocket[-1]
+    )
+    #link.transfer(
+    #    dr.address,
+    #    convert.to_uint("10000000000000000000"),
+    #    {"from": account}
+    #)
+
+    #dr.addPaymentToken(
+    #    DAI,
+    #    {"from": account}
+    #)
+
+    dr.addAssetAndAgg(
         convert.to_string("BTC"),
         convert.to_address("0x6135b13325bfC4B00278B4abC5e20bbce2D6580e"),
         {"from": account}
 
     )
-    dr = DailyRocket.deploy(
-        DAI,
-        swapRouter,
-        boxAddress,
-        {"from": account},
-        publish_source=True
-    )
-    link.tranfer(
-        dr.address,
-        convert.to_uint("10000000000000000000"),
-        {"from": account}
-    )
 
-    dr.addpaymentToken(
-        DAI,
-        {"from": account}
-    )
-
-    dr.addAssetsAndAggregators(
-        convert.to_string("BTC"),
-        convert.to_address("0x6135b13325bfC4B00278B4abC5e20bbce2D6580e"),
-        {"from": account}
-
-    )
+    dai.approve(boxAddress, 10000000000000000000, {"from":account})
     governance_token = (
         BMSGToken.deploy(
             fDaix,
@@ -120,15 +135,20 @@ def moonsquare():
     )
     tx.wait(1)
 
-    drAddress = RedirectAll.deploy(
-        host,
-        cfa,
-        fDaix,
-        daoAddress,
-        boxAddress,
-        {"from": account},
-        publish_source=True
+    drAddress = (RedirectAll.deploy(
+            host,
+            cfa,
+            fDaix,
+            daoAddress,
+            boxAddress,
+            {"from": account},
+            publish_source=True
+        )
+        if len(RedirectAll) <= 0
+        else RedirectAll[-1]
     )
+
+
     #tx = box.transferOwnership(GovernanceTimeLock[-1], {"from": account})
     #tx.wait(1)
 

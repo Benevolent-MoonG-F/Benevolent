@@ -57,18 +57,16 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
 
     mapping(string => address) public assetToAggregator;
 
-    mapping(string => uint256) coinRound;
+    mapping(string => uint256) public coinRound;
     //uint128 public coinRound;
 
-    uint128 monthCount;
+    uint128 public monthCount;
 
-    uint payroundStartTime;
+    uint public payroundStartTime;
 
     uint128 constant payDayDuration = 30 days;
 
     uint totalPaid;
-
-    uint32 public constant PAYMENT_INDEX = 0;
 
     //IUniswapV2Router02 public sushiRouter = IUniswapV2Router02(0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506);
 
@@ -111,8 +109,6 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
     mapping (uint256 => mapping(string => uint256)) public roundCoinWinningTime;
 
     uint public totalStaked;
-
-    
     //sample bet
     //structure of the bet
     struct Bet {

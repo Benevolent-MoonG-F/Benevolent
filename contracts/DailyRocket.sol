@@ -25,14 +25,14 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
 
     ILendingPoolAddressesProvider provider = ILendingPoolAddressesProvider(
         address(0x88757f2f99175387aB4C6a4b3067c77A695b0349)
-    ); // mainnet address, for other addresses: https://docs.aave.com/developers/deployed-contracts/deployed-contract-instances 
+    );  
     ILendingPool lendingPool = ILendingPool(provider.getLendingPool());
     
     IMoonSquares public moonSquare;
     ISwapRouter public immutable swapRouter;
     uint24 public constant poolFee = 3000;
 
-    uint128 dayCount;//Kepps track of the days
+    uint128 public dayCount;//Kepps track of the days
 
     string[] predictableAssets;//all assets that a user can predict
     address[] assetPriceAggregators;
@@ -61,6 +61,11 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
         bytes8 name;
         bytes32 link; //sends people to the charity's official site
     }
+    struct Prediction {
+        int256 prediction;
+        uint256 time;
+        bool isWinner;
+    }
     
     mapping (address => Charity) public presentCharities;
 
@@ -69,7 +74,7 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
     mapping(uint128 => mapping(string => address[])) public dailyAssetWinners;
 
     //user and their prediction
-    mapping(uint128 => mapping(string => mapping(address => int256))) public dayAssetUserPrediction;
+    mapping(uint128 => mapping(string => mapping(address => Prediction))) public dayAssetUserPrediction;
 
     constructor(
         address _dai,
@@ -150,7 +155,11 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
         }
         dayAssetTotalAmount[dayCount][_asset] += amount;
         //Updates The prediction mapping
-        dayAssetUserPrediction[dayCount][_asset][msg.sender] = _prediction;
+        dayAssetUserPrediction[dayCount][_asset][msg.sender] = Prediction(
+            _prediction,
+            getTime(),
+            false
+        );
         //adds to the list of predictions
         dayAssetPrediction[dayCount][_asset].push(_prediction);
         //add the sender to the predictors array
@@ -199,8 +208,9 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
 
     function claimWinnings(uint128 _day, string memory _asset) public {
         //logic to see if the person had a winning prediction
-        require(dayAssetUserPrediction[_day][_asset][msg.sender] == dayAssetClosePrice[_day][_asset]);
+        require(dayAssetUserPrediction[_day][_asset][msg.sender].prediction == dayAssetClosePrice[_day][_asset]);
         uint256 winners = dayAssetNoOfWinners[_day][_asset];
+        dayAssetUserPrediction[_day][_asset][msg.sender].isWinner = true;
         IERC20(Dai).transfer(
             msg.sender, 
             ((dayAssetTotalAmount[_day][_asset]) * 90/100)/winners
@@ -213,7 +223,7 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
         string memory _asset,
         address checked
     ) public view returns(bool){
-        require(dayAssetUserPrediction[_day][_asset][checked] == dayAssetClosePrice[_day][_asset]);
+        require(dayAssetUserPrediction[_day][_asset][checked].prediction == dayAssetClosePrice[_day][_asset]);
         return true;
     }
     
