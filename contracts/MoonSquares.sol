@@ -414,7 +414,7 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
         
     }
 
-function performUpkeep(bytes calldata performData) external override {
+    function performUpkeep(bytes calldata performData) external override {
         uint256 decodedValue = abi.decode(performData, (uint256));
         if(decodedValue <= allowedAssets.length){
             setTime(allowedAssets[decodedValue]);
@@ -484,13 +484,14 @@ function performUpkeep(bytes calldata performData) external override {
     function flowToPaymentDistributer() private {
         //Flows interest earned from the protocal to the redirectAll contract that handles distribution
             //Flow Winnings
+        int256 toInt = int256(roundInterestEarned[monthCount]);
         _host.callAgreement(
             _cfa,
             abi.encodeWithSelector(
                 _cfa.createFlow.selector,
                 _acceptedToken,
                 address(flowDistrubuter),//address to the distributer that sends funds to charity and Dao
-                (roundInterestEarned[monthCount] / 30 days), //should be the total amount of Interest withdrawnfrom the IBA divided by the number of seconds in the withdrawal interval
+                (int96(toInt) / 30 days), //should be the total amount of Interest withdrawnfrom the IBA divided by the number of seconds in the withdrawal interval
                 new bytes(0) // placeholder
             ),
             "0x"

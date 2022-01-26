@@ -20,7 +20,7 @@ import {SuperAppBase} from "../supercon/apps/SuperAppBase.sol";
 
 
 contract BMSGToken is ERC20Votes, SuperAppBase, Ownable {
-    uint256 public s_maxSupply = 100000000000000000000000000;
+    uint256 public s_maxSupply = 10_000_000_000;
 
     ISuperToken private _cashToken;
     ISuperfluid private _host;
@@ -35,7 +35,7 @@ contract BMSGToken is ERC20Votes, SuperAppBase, Ownable {
         ISuperfluid host,
         IInstantDistributionAgreementV1 ida
     )
-        ERC20("BMSGToken", "BMGT")
+        ERC20("BMS Governance Token", "BMGT")
         ERC20Permit("BMSGovernance")
     {
         _cashToken = cashToken;

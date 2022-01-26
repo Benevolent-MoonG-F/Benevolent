@@ -85,8 +85,7 @@ def moonsquare():
     )
     tx.wait(1)
 
-    drAddress = dr.address
-    rA = RedirectAll.deploy(
+    drAddress = RedirectAll.deploy(
         host,
         cfa,
         fDaix,

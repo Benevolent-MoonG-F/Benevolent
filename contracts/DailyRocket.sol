@@ -200,8 +200,10 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
     function claimWinnings(uint128 _day, string memory _asset) public {
         //logic to see if the person had a winning prediction
         require(dayAssetUserPrediction[_day][_asset][msg.sender] == dayAssetClosePrice[_day][_asset]);
+        uint256 winners = dayAssetNoOfWinners[_day][_asset];
         IERC20(Dai).transfer(
-            msg.sender, (dayAssetTotalAmount[_day][_asset]) * 90/100
+            msg.sender, 
+            ((dayAssetTotalAmount[_day][_asset]) * 90/100)/winners
         );
         
     }
@@ -241,7 +243,7 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
             lendingPool.deposit(
                 Dai,
                 uint(amount),
-                0x537c9f52E021C3CDDe2f0948255a16536BFcf581,
+                address(moonSquare),
                 0
             );
         }
