@@ -32,7 +32,6 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {
     SuperAppBase
 } from "../supercon/apps/SuperAppBase.sol";
-import "../interfaces/ISwapRouter.sol";
 import "../interfaces/IRedirect.sol";
 import "../interfaces/IGovernanceToken.sol";
 
@@ -66,7 +65,7 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
 
     uint128 constant payDayDuration = 30 days;
 
-    uint totalPaid;
+    uint public totalPaid;
 
     //IUniswapV2Router02 public sushiRouter = IUniswapV2Router02(0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506);
 
@@ -75,39 +74,17 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
     ); 
     ILendingPool public lendingPool = ILendingPool(provider.getLendingPool());
 
-    ISwapRouter public immutable swapRouter;
-    uint24 public constant poolFee = 3000;
+    //ISwapRouter public immutable swapRouter;
+    //uint24 public constant poolFee = 3000;
     
-
-    //address constant IBA = 0x9198F13B08E299d85E096929fA9781A1E3d5d827; //should be aave contact address or the IBA to be used
-    //address DAO; //address of the Dao contact
     IRedirect flowDistrubuter;
     IGovernanceToken governanceToken;
-    //address constant SWAPADRESS = 0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506;
+
     address Dai = 0xFf795577d9AC8bD7D90Ee22b6C1703490b6512FD;
     address _aaveToken;
-
     
-    mapping (uint256 => mapping(string => int256)) public roundCoinStartPrice;
-
-    mapping(uint256 => mapping(IERC20 => uint256)) roundAssetTotalAmount;
-    
-    mapping (uint256 => uint256) roundInterestEarned;
-
-    mapping (uint256 => mapping(string => uint256)) public roundCoinWinnings;//90% player winning per asset
-
-    //The target price (moon price) every round per asset
-    mapping (uint256 => mapping(string => int256)) public roundCoinMoonPrice;
-
-    //when the rallyprice get's set
-    mapping (uint256 => mapping(string => uint256)) public roundCoinStartTime;
-
-    //Total staked on the contract
-    mapping (uint256 => mapping(string => uint256)) public roundCoinTotalStaked;
-
-    //time when the price is first hit 
-    mapping (uint256 => mapping(string => uint256)) public roundCoinWinningTime;
-
+    mapping (uint256 => uint256) public roundInterestEarned;
+//
     mapping(uint256 => mapping(string => RoundInfo)) public roundCoinInfo;
     struct RoundInfo {
         int256 moonPrice;
@@ -138,11 +115,11 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
     
     mapping(uint128 => mapping(bytes8 => uint128)) public roundCharityVotes;
     
-    mapping(uint128 => address) roundVoteResults;
+    mapping(uint128 => address) public roundVoteResults;
     
     mapping (uint128 => address[]) public winers;
 
-    mapping (uint256 => mapping (string => address[])) private roundCoinPlayerArray;
+    mapping (uint256 => mapping (string => address[])) public roundCoinPlayerArray;
 
     mapping (uint256 => mapping (string => uint256[])) private roundCoinStartTimeArray;
 
@@ -165,8 +142,7 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
         
         ISuperfluid host,//0xF0d7d1D47109bA426B9D8A3Cde1941327af1eea3
         IConstantFlowAgreementV1 cfa,//0xECa8056809e7e8db04A8fF6e4E82cD889a46FE2F
-        ISuperToken acceptedToken,//0xe3cb950cb164a31c66e32c320a800d477019dcff
-        ISwapRouter _swapRouter//0xE592427A0AEce92De3Edee1F18E0157C05861564
+        ISuperToken acceptedToken//0xe3cb950cb164a31c66e32c320a800d477019dcff
         ) {
         require(address(host) != address(0));
         require(address(cfa) != address(0));
@@ -176,7 +152,6 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
         _host = host;
         _cfa = cfa;
         _acceptedToken = acceptedToken;
-        swapRouter = _swapRouter;
         payroundStartTime = block.timestamp;
 
 
@@ -189,60 +164,12 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
         _host.registerApp(configWord);
 
     }
-
-    function addpaymentToken(address _add) external onlyOwner {
-        allowedPayments.push(_add);
-    }
-
-    function addAssetsAndAggregators(string memory _asset, address _aggregator) public onlyOwner {
-        require(allowedAssets.length < 100);
-        assetToAggregator[_asset] = _aggregator;
-        allowedAssets.push(_asset);
-        assetPriceAggregators.push(_aggregator);
-    }
-
-    function addCharity(bytes8 _charityName, address _charityAddress, bytes32 _link) external onlyOwner {
-        presentCharities[_charityAddress].name = _charityName;
-        presentCharities[_charityAddress].link = _link;
-        charities.push(_charityName);
-        charityAddress.push(_charityAddress);
-    }
     
     modifier isWinner() {
         for (uint i =0; i< winers[monthCount].length; i++) {
             require(winers[monthCount][i] == msg.sender);
         }
         _;
-    }
-
-    function setMoonPrice(int price, string memory market) external onlyOwner {
-        roundCoinMoonPrice[coinRound[market]][market] = price;
-        roundCoinStartTime[coinRound[market]][market] = getTime();
-        roundCoinStartPrice[coinRound[market]][market] = getPrice(market);
-        roundCoinInfo[coinRound[market]][market] = RoundInfo(
-            price,
-            0,
-            getPrice(market),
-            0,
-            getTime(),
-            0
-        );
-
-    }
-    /*
-    moonPrice
- Winnings
- startPrice
- totalStaked
- startTime
- winningTime
-     */
-    function voteForCharity(bytes8 charity) public isWinner {
-        roundCharityVotes[monthCount][charity] += 1;
-    }
-
-    function addContract(address _conAddress) public onlyOwner{
-        contracts.push(_conAddress);
     }
 
     modifier isAllowedContract() {
@@ -252,83 +179,36 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
         _;
     }
 
-    //adds the Dao Token 
-    function addGovernanceToken(IGovernanceToken _gtAdress) public isAllowedContract {
-        governanceToken = _gtAdress;
-    }
-    
-    //adds winners to the charity voting pool
-    function addToWinners(address _winner) external isAllowedContract {
-        winers[monthCount].push(_winner);
-    }
-
-    //adds the flow distributor
-    function addFlowDistributor(IRedirect addr) public onlyOwner {
-        flowDistrubuter = addr;
-    }
-
-    //predicts an asset
-   function predictAsset(
-        uint256 _start, 
-        address coin,  /*asset to convert to dai */
-        //uint256 _end,
+    function _updateStorage(
+        uint _start,
         string memory market
-        /*address[] calldata swapPairs*/
-    ) public allowedToken(coin) /*returns (bytes memory , uint[] memory )*/
-    {
-        uint amount = 10000000000000000000;
-        uint duration = 1800 seconds;
-        
-        if (coin != Dai) {
-            require(IERC20(coin).allowance(msg.sender, address(this)) >= amount);
-            //IERC20(coin).transferFrom(msg.sender, address(this), uint(amount));
-
-            TransferHelper.safeTransferFrom(coin, msg.sender, address(this), amount);
-
-            // Approve the router to spend the specifed `amountInMaximum` of DAI.
-            // In production, you should choose the maximum amount to spend based on oracles or other data sources to acheive a better swap.
-            TransferHelper.safeApprove(coin, address(swapRouter), amount);
-            uint amountInMaximum = 15000000000000000000;
-            ISwapRouter.ExactOutputSingleParams memory params =
-                ISwapRouter.ExactOutputSingleParams({
-                    tokenIn: coin,
-                    tokenOut: Dai,
-                    fee: poolFee,
-                    recipient: address(this),
-                    deadline: block.timestamp,
-                    amountOut: amount,
-                    amountInMaximum: amountInMaximum,
-                    sqrtPriceLimitX96: 0
-                });
-
-            // Executes the swap returning the amountIn needed to spend to receive the desired amountOut.
-            uint amountIn = swapRouter.exactOutputSingle(params);
-
-            // For exact output swaps, the amountInMaximum may not have all been spent.
-            // If the actual amount spent (amountIn) is less than the specified maximum amount, we must refund the msg.sender and approve the swapRouter to spend 0.
-            if (amountIn < amountInMaximum) {
-                TransferHelper.safeApprove(Dai, address(swapRouter), 0);
-                TransferHelper.safeTransfer(Dai, msg.sender, amountInMaximum - amountIn);
-            }
-
-        } else {
-            require(IERC20(Dai).allowance(msg.sender, address(this)) >= amount);
-            IERC20(Dai).transferFrom(msg.sender, address(this), amount);
-        }
-
+    ) internal {
         roundCoinAddressBetsPlaced[coinRound[market]][market][msg.sender].squareStartTime = _start;
         
-        roundCoinAddressBetsPlaced[coinRound[market]][market][msg.sender].squareEndTime  = (_start + duration);
+        roundCoinAddressBetsPlaced[coinRound[market]][market][msg.sender].squareEndTime  = (_start + 1800 seconds);
         //update all the relevant arrays
         roundCoinPlayerArray[coinRound[market]][market].push(msg.sender);
         roundCoinStartTimeArray[coinRound[market]][market].push(_start);
-        roundCoinEndTimeArray[coinRound[market]][market].push((_start + duration));
+        roundCoinEndTimeArray[coinRound[market]][market].push((_start + 1800 seconds));
+
+    } 
+    //predicts an asset
+   function predictAsset(
+        uint256 _start, 
+        string memory market
+    ) external
+    {   
+        uint amount = 10000000000000000000;
+        uint duration = 300 seconds;
+        require(_start > block.timestamp);
+        require(IERC20(Dai).allowance(msg.sender, address(this)) >= amount);
+        IERC20(Dai).transferFrom(msg.sender, address(this), amount);
         //update the total value played
-        roundCoinTotalStaked[coinRound[market]][market] += amount;
-        roundCoinWinnings[coinRound[market]][market] += 9000000000000000;
-        roundCoinInfo[coinRound[market]][market].winnings += 9000000000000000;
         roundCoinInfo[coinRound[market]][market].totalStaked += amount;
+        roundCoinInfo[coinRound[market]][market].winnings += 9000000000000000;
+        totalStaked += amount;
         aaveDeposit(amount);
+        _updateStorage(_start, market);
         emit Predicted(msg.sender, _start, (_start + duration));
     }
 
@@ -360,6 +240,17 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
     }
 
     //it 
+    function _checkIndexes(string memory market, uint p) internal view returns(bool){
+        if (
+            roundCoinStartTimeArray[coinRound[market]][market][p] >= roundCoinInfo[coinRound[market]][market].winningTime
+            &&
+            roundCoinEndTimeArray[coinRound[market]][market][p] <= roundCoinInfo[coinRound[market]][market].winningTime
+        ) {
+            return true;
+        } else {
+            return false;
+        }
+    }
     function setwinningIndex(string memory market) internal {
         /* we iterate over the squareStartTimeArray(of squareStartTime) and the squareEndTimeArray (of squareEndTime) to assertain that the winning time 
            is either equal to them or more than the squareStartTime but less than the squareEndTime
@@ -370,31 +261,31 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
             roundCoinStartTimeArray[coinRound[market]][market].length
         );
         for (uint256 p =0; p < roundCoinStartTimeArray[coinRound[market]][market].length; p++) {
-            require(
-                roundCoinStartTimeArray[coinRound[market]][market][p] >= roundCoinWinningTime[coinRound[market]][market]
-                &&
-                roundCoinEndTimeArray[coinRound[market]][market][p] <= roundCoinWinningTime[coinRound[market]][market]    
-            );
-            roundCoinWinningIndex[coinRound[market]][market].push(p);
+            if (_checkIndexes(market, p) == true){
+                roundCoinWinningIndex[coinRound[market]][market].push(p);
+            }
             //round coin start time array of p to be greater or equal to the round coin winning time
         }
         //since squares will be owned by more than one person, we set the index to allow us to delagate the claiming reward function to the user.
     }
 
     function isAwiner(uint256 _round, string memory market, address checkeAddress) public view returns(bool) {
-        require(roundCoinWinningTime[_round][market] != 0);
-        require(
-            roundCoinAddressBetsPlaced[_round][market][checkeAddress].squareStartTime
-            <=
-            roundCoinWinningTime[_round][market]
-        );
-        require(
-            roundCoinAddressBetsPlaced[_round][market][checkeAddress].squareEndTime
-            >=
-            roundCoinWinningTime[_round][market]
-        );
-
-        return true;
+        if (roundCoinInfo[_round][market].winningTime == 0) {
+            return false;
+        } else {
+            require(roundCoinInfo[_round][market].winningTime != 0);
+            require(
+                roundCoinAddressBetsPlaced[_round][market][checkeAddress].squareStartTime
+                <=
+                roundCoinInfo[_round][market].winningTime
+            );
+            require(
+                roundCoinAddressBetsPlaced[_round][market][checkeAddress].squareEndTime
+                >=
+                roundCoinInfo[_round][market].winningTime
+            );
+            return true;
+        }
 
     }
     //should use superflid's flow if its just one user & instant distribution if there are several winners
@@ -403,23 +294,24 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
         require(roundCoinWinningIndex[coinRound[market]][market].length != 0);
         if (roundCoinWinningIndex[coinRound[market]][market].length == 1) {
     
-            IERC20(Dai).transfer(roundCoinPlayerArray[coinRound[market]][market][roundCoinWinningIndex[coinRound[market]][market][0]], roundCoinWinnings[coinRound[market]][market]);
-
+            IERC20(Dai).transfer(
+                roundCoinPlayerArray[coinRound[market]][market][roundCoinWinningIndex[coinRound[market]][market][0]],
+                roundCoinInfo[coinRound[market]][market].winnings
+            );
         } else {
             for (uint8 i = 0; i < roundCoinWinningIndex[coinRound[market]][market].length; i++) {
                 require(roundCoinPlayerArray[coinRound[market]][market][roundCoinWinningIndex[coinRound[market]][market][i]] == msg.sender);
                 IERC20(Dai).transfer(
                     roundCoinPlayerArray[coinRound[market]][market][roundCoinWinningIndex[coinRound[market]][market][i]], 
-                    roundCoinWinnings[coinRound[market]][market]/roundCoinWinningIndex[coinRound[market]][market].length
+                    roundCoinInfo[coinRound[market]][market].winnings/roundCoinWinningIndex[coinRound[market]][market].length
                 );
             }
         }
-        totalPaid += roundCoinWinnings[coinRound[market]][market];
+        totalPaid += roundCoinInfo[coinRound[market]][market].winnings;
 
     }
 
     function setTime(string memory market) private {
-        roundCoinWinningTime[coinRound[market]][market] = getTime();
         roundCoinInfo[coinRound[market]][market].winningTime = getTime();
         setwinningIndex(market);
         withdrawRoundFundsFromIba(market);
@@ -432,7 +324,11 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
     ) {
         for (uint256 p = 0; p < allowedAssets.length; p++) {
         
-            if (getPrice(allowedAssets[p]) == roundCoinMoonPrice[coinRound[allowedAssets[p]]][allowedAssets[p]]) {
+            if (
+                getPrice(allowedAssets[p])
+                ==
+                roundCoinInfo[coinRound[allowedAssets[p]]][allowedAssets[p]].moonPrice
+            ) {
                 upkeepNeeded = true;
                 return (true, /* address(this).call( */ abi.encodePacked(uint256(p)));
             }
@@ -482,7 +378,7 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
         require(roundCoinWinningIndex[coinRound[market]][market].length != 0);
         lendingPool.withdraw(
             Dai,
-            roundCoinWinnings[coinRound[market]][market],
+            roundCoinInfo[coinRound[market]][market].winnings,
             address(this)
         );
         
@@ -507,6 +403,7 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
         );
         IERC20(Dai).approve(address(_acceptedToken), interest);
         ISuperToken(_acceptedToken).upgrade(interest);
+        roundInterestEarned[monthCount] = interest;
         return(interest);
         //remember to upgrade the dai for flow
 
@@ -528,5 +425,57 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
             "0x"
         );
         monthCount += 1;
+    }
+
+    function addAssetsAndAggregators(string memory _asset, address _aggregator) public onlyOwner {
+        require(allowedAssets.length < 100);
+        assetToAggregator[_asset] = _aggregator;
+        allowedAssets.push(_asset);
+        assetPriceAggregators.push(_aggregator);
+    }
+
+    function addCharity(bytes8 _charityName, address _charityAddress, bytes32 _link) external onlyOwner {
+        presentCharities[_charityAddress].name = _charityName;
+        presentCharities[_charityAddress].link = _link;
+        charities.push(_charityName);
+        charityAddress.push(_charityAddress);
+    }
+
+    function setMoonPrice(
+        int price,
+        string memory market
+    ) external onlyOwner {
+        roundCoinInfo[coinRound[market]][market] = RoundInfo(
+            price,
+            0,
+            getPrice(market),
+            0,
+            getTime(),
+            0
+        );
+
+    }
+
+    function voteForCharity(bytes8 charity) external isWinner {
+        roundCharityVotes[monthCount][charity] += 1;
+    }
+
+    //adds contracts that call core funtions
+    function addContract(address _conAddress) external onlyOwner{
+        contracts.push(_conAddress);
+    }
+
+    function addGovernanceToken(IGovernanceToken _gtAdress) public isAllowedContract {
+        governanceToken = _gtAdress;
+    }
+    
+    //adds winners to the charity voting pool
+    function addToWinners(address _winner) external isAllowedContract {
+        winers[monthCount].push(_winner);
+    }
+
+    //adds the flow distributor
+    function addFlowDistributor(IRedirect addr) external onlyOwner {
+        flowDistrubuter = addr;
     }
 }
