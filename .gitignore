@@ -1,3 +1,4 @@
+build/contracts/
 __pycache__
 .env
 .history
@@ -5,4 +6,3 @@ __pycache__
 reports/
 tests/
 build/
-build/contracts/
