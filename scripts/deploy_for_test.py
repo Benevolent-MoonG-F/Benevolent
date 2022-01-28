@@ -19,7 +19,7 @@ def moonsquare():
     dai = interface.IERC20(DAI)
     print("loading dai and link Interfaces...")
     link = interface.LinkTokenInterface("0xa36085F69e2889c224210F603D836748e7dC0088")
-    account = accounts.load("0")#get_account()
+    account = get_account()
     print("deploying moonsquare contract..")
     box = (MoonSquares.deploy(
             host,
@@ -33,19 +33,19 @@ def moonsquare():
     )
     boxAddress = box.address
     print("tranfering link to moonSquare contract...")
-    link.transfer(
-        boxAddress,
-        convert.to_uint("10000000000000000000"),
-        {"from": account}
-    )
+    #link.transfer(
+    #    boxAddress,
+    #    convert.to_uint("10000000000000000000"),
+    #    {"from": account}
+    #)
     print("checking chainlng aggregator")
     print(box.getTime())
     print("adding asset and aggregator")
-    box.addAssetsAndAggregators(
-        convert.to_string("BTC"),
-        convert.to_address("0x6135b13325bfC4B00278B4abC5e20bbce2D6580e"),
-        {"from": account}
-    )
+    #box.addAssetsAndAggregators(
+    #    convert.to_string("BTC"),
+    #    convert.to_address("0x6135b13325bfC4B00278B4abC5e20bbce2D6580e"),
+    #    {"from": account}
+    #)
     print("setting moon Price...")
     box.setMoonPrice(
         4777468576992,
@@ -56,7 +56,6 @@ def moonsquare():
 
     print("depploying Daily Rokect contract")
     dr = (DailyRocket.deploy(
-            DAI,
             boxAddress,
             {"from": account},
             publish_source=True
