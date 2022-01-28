@@ -30,17 +30,20 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
 
     mapping(string => bool) public activeAsset;
 
-    mapping(uint256 => mapping(string => int256)) public dayAssetClosePrice; //Closing Price per asset 
+    struct DayInfo {
+        int256 closePrice;
+        uint256 noOfPlayers;
+        uint256 noOfWinners;
+        uint256 totalAmount;
+    }
 
-    mapping(uint256 => uint256) dayCloseTime; //Closing Time per asset
+    mapping(uint => mapping(string => DayInfo)) public dayAssetInfo;
+
+    mapping(uint256 => uint256) dayCloseTime; //Closing Time for every asset
     
     address Dai = 0xFf795577d9AC8bD7D90Ee22b6C1703490b6512FD;
 
     uint256 public contractStartTime; //The contract should start at 0000.00 hours
-
-    mapping(uint256 => mapping(string => uint256)) public dayAssetTotalAmount;
-
-    mapping(uint256 => mapping(string => uint256)) public dayAssetNoOfWinners;
     
     mapping(uint256 => mapping(string => int256[])) public dayAssetPrediction;
 
@@ -80,7 +83,7 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
 
     function setNewClosingPrice() internal {
         for (uint256 i = 0; i < assetPriceAggregators.length; i++){
-            dayAssetClosePrice[dayCount][predictableAssets[i]] = getPrice(i);
+            dayAssetInfo[dayCount][predictableAssets[i]].closePrice = getPrice(i);
         }
     }
     
@@ -104,7 +107,7 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
         require(IERC20(Dai).allowance(msg.sender, address(this)) >= uint(amount));
         IERC20(Dai).transferFrom(msg.sender, address(this), uint(amount));
         
-        dayAssetTotalAmount[dayCount][_asset] += amount;
+        dayAssetInfo[dayCount][_asset].totalAmount += amount;
         //Updates The prediction mapping
         dayAssetUserPrediction[dayCount][_asset][msg.sender] = Prediction(
             _prediction,
@@ -128,9 +131,13 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
                 dayAssetPredictors[day][predictableAssets[i]].length
             );
             for (uint8 p = 0; p < dayAssetPrediction[day][predictableAssets[i]].length; p++) {
-                require(dayAssetPrediction[day][predictableAssets[i]][p] == dayAssetClosePrice[day][predictableAssets[i]]);
+                require(
+                    dayAssetPrediction[day][predictableAssets[i]][p]
+                    ==
+                    dayAssetInfo[day][predictableAssets[i]].closePrice
+                );
                 dailyAssetWinners[day][predictableAssets[i]].push(dayAssetPredictors[day][predictableAssets[i]][p]);
-                dayAssetNoOfWinners[day][predictableAssets[i]] +=1;
+                dayAssetInfo[day][predictableAssets[i]].noOfWinners +=1;
 
                 moonSquare.addToWinners(dayAssetPredictors[day][predictableAssets[i]][p]);
             }
@@ -152,12 +159,12 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
 
     function claimWinnings(uint128 _day, string memory _asset) public {
         //logic to see if the person had a winning prediction
-        require(dayAssetUserPrediction[_day][_asset][msg.sender].prediction == dayAssetClosePrice[_day][_asset]);
-        uint256 winners = dayAssetNoOfWinners[_day][_asset];
+        require(dayAssetUserPrediction[_day][_asset][msg.sender].prediction == dayAssetInfo[_day][_asset].closePrice);
+        uint256 winners = dayAssetInfo[_day][_asset].noOfWinners;
         dayAssetUserPrediction[_day][_asset][msg.sender].isWinner = true;
         IERC20(Dai).transfer(
             msg.sender, 
-            ((dayAssetTotalAmount[_day][_asset]) * 90/100)/winners
+            ((dayAssetInfo[_day][_asset].totalAmount) * 90/100)/winners
         );
         
     }
@@ -167,13 +174,13 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
         string memory _asset,
         address checked
     ) public view returns(bool){
-        if(dayAssetClosePrice[_day][_asset] == 0) {
-            return true;
+        if(dayAssetInfo[_day][_asset].closePrice == 0) {
+            return false;
         }else {
             require(
                 dayAssetUserPrediction[_day][_asset][checked].prediction
                 ==
-                dayAssetClosePrice[_day][_asset]
+                dayAssetInfo[_day][_asset].closePrice
             );
             return true;
         }
@@ -208,8 +215,7 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
     function sendToIba() private {
         require(getTime() > dayCloseTime[dayCount -1] + 64800 seconds);
         for (uint128 i = 0; i < predictableAssets.length; i++) {
-            uint amount = ((dayAssetTotalAmount[dayCount][predictableAssets[i]]) * 10/100);
-            //IERC20(Dai).approve(IBA, amount);
+            uint amount = ((dayAssetInfo[dayCount][predictableAssets[i]].totalAmount) * 10/100);
             IERC20(Dai).approve(address(lendingPool), amount);
             lendingPool.deposit(
                 Dai,
@@ -218,8 +224,5 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
                 0
             );
         }
-    }
-
-
-    
+    }    
 }
