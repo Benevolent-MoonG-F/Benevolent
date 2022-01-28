@@ -31,28 +31,26 @@ def moonsquare():
         else MoonSquares[-1]
     )
     boxAddress = box.address
-    #link.transfer(
-    #    boxAddress,
-    #    convert.to_uint("10000000000000000000"),
-    #    {"from": account}
-    #)
-    #box.getTime()
-    #box.addpaymentToken(
-    #    DAI,
-    #    {"from": account}
-    #)
-
-    #box.addAssetsAndAggregators(
-    #    convert.to_string("BTC"),
-    #    convert.to_address("0x6135b13325bfC4B00278B4abC5e20bbce2D6580e"),
-    #    {"from": account}
-    #)
-
-    #box.setMoonPrice(
-    #    4777468576992,
-    #    "BTC",
-    #    {"from": account}
-    #)
+#    link.transfer(
+#        boxAddress,
+#        convert.to_uint("10000000000000000000"),
+#        {"from": account}
+#    )
+#    box.getTime()
+#    box.addpaymentToken(
+#        DAI,
+#        {"from": account}
+#    )
+#    box.addAssetsAndAggregators(
+#        convert.to_string("BTC"),
+#        convert.to_address("0x6135b13325bfC4B00278B4abC5e20bbce2D6580e"),
+#        {"from": account}
+#    )
+#    box.setMoonPrice(
+#        4777468576992,
+#        "BTC",
+#        {"from": account}
+#    )
 
     dr = (DailyRocket.deploy(
             DAI,
@@ -64,77 +62,76 @@ def moonsquare():
         if len(DailyRocket) <= 0
         else DailyRocket[-1]
     )
-    #link.transfer(
-    #    dr.address,
-    #    convert.to_uint("10000000000000000000"),
-    #    {"from": account}
+#    link.transfer(
+#        dr.address,
+#        convert.to_uint("10000000000000000000"),
+#        {"from": account}
+#    )
+#    dr.addPaymentToken(
+#        DAI,
+#        {"from": account}
+#    )
+#
+#    dr.addAssetAndAgg(
+#        convert.to_string("BTC"),
+#        convert.to_address("0x6135b13325bfC4B00278B4abC5e20bbce2D6580e"),
+#        {"from": account}
+#
+#    )
+
+    #dai.approve(boxAddress, 10000000000000000000, {"from":account})
+    #governance_token = (
+    #    BMSGToken.deploy(
+    #        fDaix,
+    #        host,
+    #        ida,
+    #        {"from": account},
+    #        publish_source=config["networks"][network.show_active()].get(
+    #            "verify", False
+    #        ),
+    #    )
+    #    if len(BMSGToken) <= 0
+    #    else BMSGToken[-1]
     #)
-
-    #dr.addPaymentToken(
-    #    DAI,
-    #    {"from": account}
+    #daoAddress = governance_token.address
+    #governance_token.delegate(account, {"from": account})
+    #print(f"Checkpoints: {governance_token.numCheckpoints(account)}")
+    #governance_time_lock = (
+    #    GovernanceTimeLock.deploy(
+    #        MIN_DELAY,
+    #        [],
+    #        [],
+    #        {"from": account},
+    #        publish_source=config["networks"][network.show_active()].get(
+    #            "verify", True
+    #        ),
+    #    )
+    #    if len(GovernanceTimeLock) <= 0
+    #    else GovernanceTimeLock[-1]
     #)
-
-    dr.addAssetAndAgg(
-        convert.to_string("BTC"),
-        convert.to_address("0x6135b13325bfC4B00278B4abC5e20bbce2D6580e"),
-        {"from": account}
-
-    )
-
-    dai.approve(boxAddress, 10000000000000000000, {"from":account})
-    governance_token = (
-        BMSGToken.deploy(
-            fDaix,
-            host,
-            ida,
-            {"from": account},
-            publish_source=config["networks"][network.show_active()].get(
-                "verify", False
-            ),
-        )
-        if len(BMSGToken) <= 0
-        else BMSGToken[-1]
-    )
-    daoAddress = governance_token.address
-    governance_token.delegate(account, {"from": account})
-    print(f"Checkpoints: {governance_token.numCheckpoints(account)}")
-    governance_time_lock = (
-        GovernanceTimeLock.deploy(
-            MIN_DELAY,
-            [],
-            [],
-            {"from": account},
-            publish_source=config["networks"][network.show_active()].get(
-                "verify", True
-            ),
-        )
-        if len(GovernanceTimeLock) <= 0
-        else GovernanceTimeLock[-1]
-    )
-    governor = MyGovernor.deploy(
-        governance_token.address,
-        governance_time_lock.address,
-        #QUORUM_PERCENTAGE,
-        #VOTING_PERIOD,
-        #VOTING_DELAY,
-        {"from": account},
-        publish_source=config["networks"][network.show_active()].get("verify", True),
-    )
-    # Now, we set the roles...
-    # Multicall would be great here ;)
-    proposer_role = governance_time_lock.PROPOSER_ROLE()
-    executor_role = governance_time_lock.EXECUTOR_ROLE()
-    timelock_admin_role = governance_time_lock.TIMELOCK_ADMIN_ROLE()
-    governance_time_lock.grantRole(proposer_role, governor, {"from": account})
-    governance_time_lock.grantRole(
-        executor_role, constants.ADDRESS_ZERO, {"from": account}
-    )
-    tx = governance_time_lock.revokeRole(
-        timelock_admin_role, account, {"from": account}
-    )
-    tx.wait(1)
-
+    #governor = MyGovernor.deploy(
+    #    governance_token.address,
+    #    governance_time_lock.address,
+    #    #QUORUM_PERCENTAGE,
+    #    #VOTING_PERIOD,
+    #    #VOTING_DELAY,
+    #    {"from": account},
+    #    publish_source=config["networks"][network.show_active()].get("verify", True),
+    #)
+    ## Now, we set the roles...
+    ## Multicall would be great here ;)
+    #proposer_role = governance_time_lock.PROPOSER_ROLE()
+    #executor_role = governance_time_lock.EXECUTOR_ROLE()
+    #timelock_admin_role = governance_time_lock.TIMELOCK_ADMIN_ROLE()
+    #governance_time_lock.grantRole(proposer_role, governor, {"from": account})
+    #governance_time_lock.grantRole(
+    #    executor_role, constants.ADDRESS_ZERO, {"from": account}
+    #)
+    #tx = governance_time_lock.revokeRole(
+    #    timelock_admin_role, account, {"from": account}
+    #)
+    #tx.wait(1)
+    daoAddress = convert.to_address("0xF9e4019B27CFb53a91a5B1F8C57C2689c14e2791")
     drAddress = (RedirectAll.deploy(
             host,
             cfa,
