@@ -6,16 +6,16 @@ import {
     ISuperfluid,
     ISuperToken,
     SuperAppDefinitions
-} from "../supercon/interfaces/superfluid/ISuperfluid.sol";
+} from "@superfluid/interfaces/superfluid/ISuperfluid.sol";
 import {
     IInstantDistributionAgreementV1
-} from "../supercon/interfaces/agreements/IInstantDistributionAgreementV1.sol";
+} from "@superfluid/interfaces/agreements/IInstantDistributionAgreementV1.sol";
 
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol";
 
-import {SuperAppBase} from "../supercon/apps/SuperAppBase.sol";
+import {SuperAppBase} from "@superfluid/apps/SuperAppBase.sol";
 
 
 

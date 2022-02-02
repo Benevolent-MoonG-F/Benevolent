@@ -50,6 +50,8 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
     mapping(uint256 => mapping(string => address[])) public dayAssetPredictors;
 
     event Predicted(address indexed _placer, int256 _prediction);
+
+    event SentToIBA(uint256 indexed amount, uint256 indexed day);
     
     struct Charity {
         bytes8 name;
@@ -223,6 +225,7 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
                 address(moonSquare),
                 0
             );
+            emit SentToIBA(uint(amount), dayCount);
         }
     }    
 }

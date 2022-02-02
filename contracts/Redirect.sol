@@ -4,17 +4,23 @@ pragma solidity ^0.8.0;
 import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-import {ISuperfluid, ISuperToken, ISuperApp, ISuperAgreement, SuperAppDefinitions} from "../supercon/interfaces/superfluid/ISuperfluid.sol";
+import {
+    ISuperfluid,
+    ISuperToken,
+    ISuperApp,
+    ISuperAgreement,
+    SuperAppDefinitions
+} from "@superfluid/interfaces/superfluid/ISuperfluid.sol";
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-import "../supercon/interfaces/agreements/IConstantFlowAgreementV1.sol";
+import "@superfluid/interfaces/agreements/IConstantFlowAgreementV1.sol";
 
 import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-import {SuperAppBase} from "../supercon/apps/SuperAppBase.sol";
+import {SuperAppBase} from "@superfluid/apps/SuperAppBase.sol";
 
 contract RedirectAll is SuperAppBase, Ownable {
 
@@ -84,7 +90,7 @@ contract RedirectAll is SuperAppBase, Ownable {
       for (uint96 i = 0; i < _receiver.length; i++){
         int96 netFlowRate = _cfa.getNetFlow(_acceptedToken, address(this));
         (,int96 outFlowRate,,) = _cfa.getFlow(_acceptedToken, address(this), _receiver[0]); // CHECK: unclear what happens if flow doesn't exist.
-        int96 inFlowRate = netFlowRate + (outFlowRate * 3);
+        int96 inFlowRate = netFlowRate + (outFlowRate * 2);
     
           // @dev If inFlowRate === 0, then delete existing flow.
           if (inFlowRate == int96(0)) {
@@ -150,33 +156,35 @@ contract RedirectAll is SuperAppBase, Ownable {
         // @dev delete flow to old receiver
     
         (,int96 outFlowRate,,) = _cfa.getFlow(_acceptedToken, address(this), _receiver[0]); //CHECK: unclear what happens if flow doesn't exist.
-        if(outFlowRate > 0){
-          _host.callAgreement(
-              _cfa,
-              abi.encodeWithSelector(
-                  _cfa.deleteFlow.selector,
-                  _acceptedToken,
-                  address(this),
-                  _receiver[1],
-                  new bytes(0)
-              ),
-              "0x"
-          );
-          _receiver[1] = newReceiver;
-          // @dev create flow to new receiver
-          _host.callAgreement(
-              _cfa,
-              abi.encodeWithSelector(
-                  _cfa.createFlow.selector,
-                  _acceptedToken,
-                  _receiver[1],
-                  (_cfa.getNetFlow(_acceptedToken, address(this))/3),
-                  new bytes(0)
-              ),
-              "0x"
-          );
-        }
+        if(outFlowRate > 0) {
+            for (uint i = 0; i< _receiver.length; i++){
+                _host.callAgreement(
+                    _cfa,
+                    abi.encodeWithSelector(
+                        _cfa.deleteFlow.selector,
+                        _acceptedToken,
+                        address(this),
+                        _receiver[i],
+                        new bytes(0)
+                    ),
+                    "0x"
+                );
+                _receiver[1] = newReceiver;
+                // @dev create flow to new receiver
+                _host.callAgreement(
+                    _cfa,
+                    abi.encodeWithSelector(
+                        _cfa.createFlow.selector,
+                        _acceptedToken,
+                        _receiver[i],
+                        (_cfa.getNetFlow(_acceptedToken, address(this))/2),
+                        new bytes(0)
+                    ),
+                    "0x"
+                );
+            }
         // @dev set global receiver to new receiver
+        }
         _receiver[1] = newReceiver;
 
         emit ReceiverChanged(_receiver[1]);

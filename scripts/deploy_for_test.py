@@ -40,18 +40,18 @@ def moonsquare():
     #)
     print("checking chainlng aggregator")
     print(box.getTime())
-    print("adding asset and aggregator")
+    #print("adding asset and aggregator")
     #box.addAssetsAndAggregators(
     #    convert.to_string("BTC"),
     #    convert.to_address("0x6135b13325bfC4B00278B4abC5e20bbce2D6580e"),
     #    {"from": account}
     #)
-    print("setting moon Price...")
-    box.setMoonPrice(
-        4777468576992,
-        "BTC",
-        {"from": account}
-    )
+    #print("setting moon Price...")
+    #box.setMoonPrice(
+    #    4777468576992,
+    #    "BTC",
+    #    {"from": account}
+    #)
 
 
     print("depploying Daily Rokect contract")
@@ -63,21 +63,21 @@ def moonsquare():
         if len(DailyRocket) <= 0
         else DailyRocket[-1]
     )
-    print("tranfering link to DR contract...")
-    link.transfer(
-        dr.address,
-        convert.to_uint("10000000000000000000"),
-        {"from": account}
-    )
-    print("adding asset and aggregator to dr...")
-    dr.addAssetAndAgg(
-        convert.to_string("BTC"),
-        convert.to_address("0x6135b13325bfC4B00278B4abC5e20bbce2D6580e"),
-        {"from": account}
+    #print("tranfering link to DR contract...")
+    #link.transfer(
+    #    dr.address,
+    #    convert.to_uint("10000000000000000000"),
+    #    {"from": account}
+    #)
+    #print("adding asset and aggregator to dr...")
+    #dr.addAssetAndAgg(
+    #    convert.to_string("BTC"),
+    #    convert.to_address("0x6135b13325bfC4B00278B4abC5e20bbce2D6580e"),
+    #    {"from": account}
+#
+    #)
 
-    )
-
-    dai.approve(boxAddress, 10000000000000000000, {"from":account})
+    #dai.approve(boxAddress, 10000000000000000000, {"from":account})
     governance_token = (
         BMSGToken.deploy(
             fDaix,

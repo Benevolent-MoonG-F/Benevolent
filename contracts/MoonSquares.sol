@@ -20,18 +20,18 @@ import {
     ISuperApp,
     ISuperAgreement,
     SuperAppDefinitions
-} from "../supercon/interfaces/superfluid/ISuperfluid.sol";
+} from "@superfluid/interfaces/superfluid/ISuperfluid.sol";
 
 import {
     IConstantFlowAgreementV1
-} from "../supercon/interfaces/agreements/IConstantFlowAgreementV1.sol";
+} from "@superfluid/interfaces/agreements/IConstantFlowAgreementV1.sol";
 
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 import {
     SuperAppBase
-} from "../supercon/apps/SuperAppBase.sol";
+} from "@superfluid/apps/SuperAppBase.sol";
 import "../interfaces/IRedirect.sol";
 import "../interfaces/IGovernanceToken.sol";
 
