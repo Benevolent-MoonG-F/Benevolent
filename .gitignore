@@ -6,3 +6,4 @@ __pycache__
 reports/
 tests/
 build/
+node_modules/

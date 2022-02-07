@@ -1,0 +1,25 @@
+{
+  "name": "y",
+  "version": "1.0.0",
+  "description": "Benevolent Moon Gaming and Finance  A team of creators with common values has galvanized from across the globe to bring the greater community innovative products that are mission-driven and community-centric in a decentralized, permissionless, trustless, smart contract catalyzed manner.",
+  "main": "hardhat.config.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Benevolent-MoonG-F/Benevolent.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Benevolent-MoonG-F/Benevolent/issues"
+  },
+  "homepage": "https://github.com/Benevolent-MoonG-F/Benevolent#readme",
+  "dependencies": {
+    "@superfluid-finance/ethereum-contracts": "^1.0.0-rc.11"
+  }
+}

@@ -12,7 +12,7 @@ compiler:
     remappings:
       - '@chainlink=smartcontractkit/chainlink-brownie-contracts@0.2.1'
       - '@openzeppelin=OpenZeppelin/openzeppelin-contracts@4.3.0'
-      - '@superfluid=/usr/local/lib/node_modules/@superfluid-finance/ethereum-contracts/contracts'
+      - '@superfluid=./node_modules/@superfluid-finance/ethereum-contracts/contracts'
 # automatically fetch contract sources from Etherscan
 autofetch_sources: True
 # Uncomment to use the .env file
