@@ -8,45 +8,20 @@ import "@chainlink/contracts/src/v0.8/interfaces/KeeperCompatibleInterface.sol";
 //import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
-
 import "../interfaces/DataTypes.sol";
 import "../interfaces/ILendingPoolAddressesProvider.sol";
 import "../interfaces/ILendingPool.sol";
-import {
-    ISuperfluid,
-    ISuperToken,
-    ISuperApp,
-    ISuperAgreement,
-    SuperAppDefinitions
-} from "@superfluid/interfaces/superfluid/ISuperfluid.sol";
-
-import {
-    IConstantFlowAgreementV1
-} from "@superfluid/interfaces/agreements/IConstantFlowAgreementV1.sol";
-
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-import {
-    SuperAppBase
-} from "@superfluid/apps/SuperAppBase.sol";
 import "../interfaces/IRedirect.sol";
 import "../interfaces/IGovernanceToken.sol";
 
+import "../interfaces/IHandler.sol";
+
 
 //make it a super app to allow using superfluid flows and instant distribution
-contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
-    
-    ISuperfluid private _host; // host
-    IConstantFlowAgreementV1 private _cfa; // the stored constant flow agreement class address 
-    
-    //the Super token used to pay for option premium (sent directly to the NFT and redirected to owner of the NFT)
-    ISuperToken public _acceptedToken; // accepted token, could be the aToken 
-
-
-    address[] public allowedPayments;//list of all accepted stablecoins for placing a prediction
+contract MoonSquares is KeeperCompatibleInterface, Ownable {
 
     string[] public allowedAssets;//All assets that are predicted on the platform
     
@@ -69,19 +44,21 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
 
     //IUniswapV2Router02 public sushiRouter = IUniswapV2Router02(0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506);
 
-    ILendingPoolAddressesProvider public provider = ILendingPoolAddressesProvider(
+    ILendingPoolAddressesProvider private provider = ILendingPoolAddressesProvider(
         address(0x88757f2f99175387aB4C6a4b3067c77A695b0349)
     ); 
-    ILendingPool public lendingPool = ILendingPool(provider.getLendingPool());
+    ILendingPool private lendingPool = ILendingPool(provider.getLendingPool());
 
     //ISwapRouter public immutable swapRouter;
     //uint24 public constant poolFee = 3000;
     
-    IRedirect flowDistrubuter;
-    IGovernanceToken governanceToken;
+    IRedirect private flowDistrubuter;
+    IGovernanceToken private governanceToken;
+    IHandler private handler;
 
-    address Dai = 0xFf795577d9AC8bD7D90Ee22b6C1703490b6512FD;
-    address _aaveToken = 0xdCf0aF9e59C002FA3AA091a46196b37530FD48a8;
+    address private Dai = 0xFf795577d9AC8bD7D90Ee22b6C1703490b6512FD;
+    address private _aaveToken = 0xdCf0aF9e59C002FA3AA091a46196b37530FD48a8;
+    address private Daix = 0x43F54B13A0b17F67E61C9f0e41C3348B3a2BDa09;
     
     mapping (uint256 => uint256) public roundInterestEarned;
 //
@@ -132,22 +109,7 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
     event CharityThisMonth(address indexed charityAddress_, bytes8 indexed name_);
     
 
-    constructor(
-        
-        //set superfluid specific params, receiver, and accepted token in the constructor
-        
-        ISuperfluid host,//0xF0d7d1D47109bA426B9D8A3Cde1941327af1eea3
-        IConstantFlowAgreementV1 cfa,//0xECa8056809e7e8db04A8fF6e4E82cD889a46FE2F
-        ISuperToken acceptedToken//0xe3cb950cb164a31c66e32c320a800d477019dcff
-        ) {
-        require(address(host) != address(0));
-        require(address(cfa) != address(0));
-        require(address(acceptedToken) != address(0));
-        //require(address(receiver) != address(0));
-        //require(!host.isApp(ISuperApp(receiver)));
-        _host = host;
-        _cfa = cfa;
-        _acceptedToken = acceptedToken;
+    constructor() {
         payroundStartTime = block.timestamp;
     }
 
@@ -250,7 +212,12 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
     }
     //should use superflid's flow if its just one user & instant distribution if there are several winners
 
-     function takePrize( uint round, string memory market, uint256 betId, bytes8 charity) external {
+     function takePrize(
+         uint round,
+         string memory market,
+         uint256 betId,
+         bytes8 charity
+    ) external {
         require(roundCoinInfo[round][market].numberOfWinners != 0);
         require(
             roundCoinAddressBetsPlaced[round][market][betId].isWinner == true
@@ -286,14 +253,15 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
                 roundCoinInfo[coinRound[allowedAssets[p]]][allowedAssets[p]].moonPrice
             ) {
                 upkeepNeeded = true;
-                return (true, /* address(this).call( */ abi.encodePacked(uint256(p)));
+                performData = abi.encodePacked(uint256(p));
+                return (true, performData);
             }
         }
         if (block.timestamp >= payroundStartTime + 30 days) {
             upkeepNeeded = true;
-            return (true, abi.encodePacked(uint256(1000)));
+            performData = abi.encodePacked(uint256(1000));
+            return (true, performData);
         }
-        performData = checkData;
         
     }
 
@@ -308,13 +276,6 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
             flowToPaymentDistributer();
             distributeToMembers();
         }
-    }
-
-    modifier allowedToken(address _token) {
-        for(uint i =0; i < allowedPayments.length; i++) {
-            require(allowedPayments[i] == _token);
-        }
-        _;
     }
 
     function setwinningCharity() public {
@@ -347,7 +308,7 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
 
     function distributeToMembers() private {
         require(monthCount != 0);
-        uint256 cashAmount = _acceptedToken.balanceOf(address(governanceToken));
+        uint256 cashAmount = IERC20(Daix).balanceOf(address(governanceToken));
         governanceToken.distribute(
             cashAmount
         );
@@ -359,10 +320,9 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
         lendingPool.withdraw(
             Dai,
             interest,
-            address(this)
+            address(handler)
         );
-        IERC20(Dai).approve(address(_acceptedToken), interest);
-        ISuperToken(_acceptedToken).upgrade(interest);
+        handler.upgradeToken(interest);
         roundInterestEarned[monthCount] = interest;
         return(interest);
         //remember to upgrade the dai for flow
@@ -374,17 +334,7 @@ contract MoonSquares is SuperAppBase, KeeperCompatibleInterface, Ownable {
         //Flows interest earned from the protocal to the redirectAll contract that handles distribution
             //Flow Winnings
         int256 toInt = int256(roundInterestEarned[monthCount]);
-        _host.callAgreement(
-            _cfa,
-            abi.encodeWithSelector(
-                _cfa.createFlow.selector,
-                _acceptedToken,
-                address(flowDistrubuter),//address to the distributer that sends funds to charity and Dao
-                (int96(toInt) / 30 days), //should be the total amount of Interest withdrawnfrom the IBA divided by the number of seconds in the withdrawal interval
-                new bytes(0) // placeholder
-            ),
-            "0x"
-        );
+        handler.createFlow(int96(toInt / 30 days));
         monthCount += 1;
     }
 

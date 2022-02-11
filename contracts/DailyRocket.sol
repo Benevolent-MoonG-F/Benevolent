@@ -246,9 +246,9 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
     ) {
         if (dayCloseTime[dayCount] + 86400 seconds == getTime()){
             upkeepNeeded = true;
+            performData = abi.encodePacked(uint256(0));
             return (true, abi.encodePacked(uint256(0)));
         }
-        performData = checkData;
         
     }
     
