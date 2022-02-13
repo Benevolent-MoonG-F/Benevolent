@@ -234,14 +234,14 @@ contract MoonSquares is KeeperCompatibleInterface, Ownable {
         roundCharityVotes[monthCount][charity] += 1;
     }
 
-    function setTime(string memory market) private {
+    function setTime(string memory market) public {
         roundCoinInfo[coinRound[market]][market].winningTime = getTime();
         setWinningBets(market);
         withdrawRoundFundsFromIba(market);
     }
 
     function checkUpkeep(
-        bytes calldata checkData
+        bytes calldata /*checkData*/
     ) external view override returns (
         bool upkeepNeeded, bytes memory performData
     ) {

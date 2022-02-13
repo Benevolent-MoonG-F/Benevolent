@@ -1,24 +1,38 @@
 # Benevolent -  
-Benevolent Moon Gaming and Finance 
-A team of creators with common values has galvanized from across the globe to bring the greater community innovative products that are mission-driven and community-centric in a decentralized, permissionless, trustless, smart contract catalyzed manner. 
+## How to start the project?
 
-Early in the development process, the founders of Benevolent Moon Gaming and Finance (BMGF) identified the pillars of our organizational mission.   As a team, we have an unwavering fortress of conviction that all of our contributions to the blockchain space clearly manifest these values: 
-Fun and engaging support of decentralised games and financial instruments.
-Global Community Focused on Community-galvanizing and ultimate community governance (DAO)
-Benevolent/ Service-Oriented Vision that all of our offerings have a charitable component. 
-Palpable Financial, Charitable, and Social Benefits of all gaming and financial products. 
+Navigate to your prefered directory, then run these commands in your terminal.
 
-This ReadMe outlines our initial processes, utilizing best practices of design thinking and project startup, then maps the path that we have traveled in creating, developing, growing, deploying, and nurturing the Benevolent Moon Gaming and Finance suite of decentralized products.  
+**1. Clone the project**
+```
+git clone https://github.com/Benevolent-MoonG-F/Benevolent.git
+```
+**2. Navigate to the project directory:**
+```
+cd Benevolent
+```
+**3. Install eth-brownie:**
+```
+pip3 install eth-brownie or pipx install eth-brownie
+```  
+**4. install openzepelin, chainlink and superfluid packages:**
+```
+brownie pm intsall <package>
+```
+**5. set your private key in the brownie-config.yaml**
+```
+export PRIVATE_KEY="0xhdgfyugwOFGF..."
+```
+```
+brownie run scripts/deploy_for_test.py --network <network>
+```
+```
+dai kovan address: 0xFf795577d9AC8bD7D90Ee22b6C1703490b6512FD
+```
+```
+daix kovan address: 0x43F54B13A0b17F67E61C9f0e41C3348B3a2BDa09
+```
 
-Ultimately, the Benevolent Moon Squares, and its various iterations, marks the neophytic steps of a journey that we believe will be a long partnership with each other, and that our team has with the blockchain space as we pursue the ceaseless path to serve as guided by the pillars of our mission and values. 
-
-
-Mission Statement Components:
-
-Fun and engaging support of crypto growth
-Global Community Focus/ Community-galvanizing
-Benevolent/ Service-Oriented Vision
-Financial, Charitable, Social Benefits of all our #Defi activities. 
 
 [![built-with openzeppelin](https://img.shields.io/badge/built%20with-OpenZeppelin-3677FF)](https://docs.openzeppelin.com/)
 

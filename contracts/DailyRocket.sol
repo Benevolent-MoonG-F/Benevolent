@@ -134,7 +134,7 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
         emit Predicted(msg.sender, _prediction);
     }
 
-    function setNumberOfWinners() public onlyOwner {
+    function setNumberOfWinners() public {
         uint128 day = dayCount;
         for (uint8 i = 0; i < predictableAssets.length; i++) {
             for (uint8 p = 0; p <= dayAssetInfo[day][predictableAssets[i]].totalBets; p++) {
@@ -221,7 +221,6 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
             dayAssetUserPrediction[_day][_asset][betId].paid == false
         );
         uint256 winners = dayAssetInfo[_day][_asset].noOfWinners;
-        //dayAssetUserPrediction[_day][_asset][betId].isWinner = true;
         address winner = dayAssetUserPrediction[_day][_asset][betId].owner;
         IERC20(Dai).transfer(
             winner, 
@@ -275,8 +274,9 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
                 address(moonSquare),
                 0
             );
-            emit SentToIBA(uint(amount), dayCount);
             moonSquare.acountForDRfnds(uint(amount));
+            emit SentToIBA(uint(amount), dayCount);
+            
             //remember to account for funds in moonsquare contract
         }
     }    

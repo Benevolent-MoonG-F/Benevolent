@@ -1,4 +1,16 @@
-from brownie import interface, accounts,MoonSquares, DailyRocket, RedirectAll, BMSGToken, GovernanceTimeLock, MyGovernor, config, network, convert
+from brownie import (
+    interface,
+    MoneyHandler,
+    MoonSquares,
+    DailyRocket,
+    RedirectAll,
+    BMSGToken,
+    GovernanceTimeLock,
+    MyGovernor,
+    config,
+    network,
+    convert
+)
 from scripts.helpful_scripts import get_account
 from web3 import Web3, constants
 
@@ -22,9 +34,6 @@ def moonsquare():
     account = get_account()
     print("deploying moonsquare contract..")
     box = (MoonSquares.deploy(
-            host,
-            cfa,
-            fDaix,
             {"from": account},
             publish_source=True
         )
@@ -78,70 +87,84 @@ def moonsquare():
     )
 
     ##dai.approve(boxAddress, 10000000000000000000, {"from":account})
-    #governance_token = (
-    #    BMSGToken.deploy(
-    #        fDaix,
-    #        host,
-    #        ida,
-    #        {"from": account},
-    #        publish_source=config["networks"][network.show_active()].get(
-    #            "verify", False
-    #        ),
-    #    )
-    #    if len(BMSGToken) <= 0
-    #    else BMSGToken[-1]
-    #)
-    #daoAddress = governance_token.address
-    #governance_token.delegate(account, {"from": account})
-    #print(f"Checkpoints: {governance_token.numCheckpoints(account)}")
-    #governance_time_lock = (
-    #    GovernanceTimeLock.deploy(
-    #        MIN_DELAY,
-    #        [],
-    #        [],
-    #        {"from": account},
-    #        publish_source=config["networks"][network.show_active()].get(
-    #            "verify", True
-    #        ),
-    #    )
-    #    if len(GovernanceTimeLock) <= 0
-    #    else GovernanceTimeLock[-1]
-    #)
-    #governor = MyGovernor.deploy(
-    #    governance_token.address,
-    #    governance_time_lock.address,
-    #    #QUORUM_PERCENTAGE,
-    #    #VOTING_PERIOD,
-    #    #VOTING_DELAY,
-    #    {"from": account},
-    #    publish_source=config["networks"][network.show_active()].get("verify", True),
-    #)
-    ## Now, we set the roles...
-    ## Multicall would be great here ;)
-    #proposer_role = governance_time_lock.PROPOSER_ROLE()
-    #executor_role = governance_time_lock.EXECUTOR_ROLE()
-    #timelock_admin_role = governance_time_lock.TIMELOCK_ADMIN_ROLE()
-    #governance_time_lock.grantRole(proposer_role, governor, {"from": account})
-    #governance_time_lock.grantRole(
-    #    executor_role, constants.ADDRESS_ZERO, {"from": account}
-    #)
-    #tx = governance_time_lock.revokeRole(
-    #    timelock_admin_role, account, {"from": account}
-    #)
-    #tx.wait(1)
-    #daoAddress = convert.to_address("0xF9e4019B27CFb53a91a5B1F8C57C2689c14e2791")
-    #drAddress = (RedirectAll.deploy(
-    #        host,
-    #        cfa,
-    #        fDaix,
-    #        daoAddress,
-    #        boxAddress,
-    #        {"from": account},
-    #        publish_source=True
-    #    )
-    #    if len(RedirectAll) <= 0
-    #    else RedirectAll[-1]
-    #)
+    governance_token = (
+        BMSGToken.deploy(
+            fDaix,
+            host,
+            ida,
+            {"from": account},
+            publish_source=config["networks"][network.show_active()].get(
+                "verify", False
+            ),
+        )
+        if len(BMSGToken) <= 0
+        else BMSGToken[-1]
+    )
+    daoAddress = governance_token.address
+    governance_token.delegate(account, {"from": account})
+    print(f"Checkpoints: {governance_token.numCheckpoints(account)}")
+    governance_time_lock = (
+        GovernanceTimeLock.deploy(
+            MIN_DELAY,
+            [],
+            [],
+            {"from": account},
+            publish_source=config["networks"][network.show_active()].get(
+                "verify", True
+            ),
+        )
+        if len(GovernanceTimeLock) <= 0
+        else GovernanceTimeLock[-1]
+    )
+    governor = MyGovernor.deploy(
+        governance_token.address,
+        governance_time_lock.address,
+        #QUORUM_PERCENTAGE,
+        #VOTING_PERIOD,
+        #VOTING_DELAY,
+        {"from": account},
+        publish_source=config["networks"][network.show_active()].get("verify", True),
+    )
+    # Now, we set the roles...
+    # Multicall would be great here ;)
+    proposer_role = governance_time_lock.PROPOSER_ROLE()
+    executor_role = governance_time_lock.EXECUTOR_ROLE()
+    timelock_admin_role = governance_time_lock.TIMELOCK_ADMIN_ROLE()
+    governance_time_lock.grantRole(proposer_role, governor, {"from": account})
+    governance_time_lock.grantRole(
+        executor_role, constants.ADDRESS_ZERO, {"from": account}
+    )
+    tx = governance_time_lock.revokeRole(
+        timelock_admin_role, account, {"from": account}
+    )
+    tx.wait(1)
+    daoAddress = convert.to_address("0xF9e4019B27CFb53a91a5B1F8C57C2689c14e2791")
+    drAddress = (
+        RedirectAll.deploy(
+            host,
+            cfa,
+            fDaix,
+            daoAddress,
+            boxAddress,
+            {"from": account},
+            publish_source=True
+        )
+        if len(RedirectAll) <= 0
+        else RedirectAll[-1]
+    )
+
+    handelr = (
+        MoneyHandler.deploy(
+            host,
+            cfa,
+            fDaix,
+            DAI,
+            drAddress.address,
+            {"from": account}
+        )
+        if len(MoneyHandler) <= 0
+        else MoneyHandler[-1]
+    )
 
 
     #tx = box.transferOwnership(GovernanceTimeLock[-1], {"from": account})
