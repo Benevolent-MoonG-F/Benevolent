@@ -1,3 +1,4 @@
+from random import random, randrange
 from brownie import (
     interface,
     MoneyHandler,
@@ -9,7 +10,9 @@ from brownie import (
     MyGovernor,
     config,
     network,
-    convert
+    convert,
+    accounts,
+    chain
 )
 from scripts.helpful_scripts import get_account
 from web3 import Web3, constants
@@ -27,6 +30,9 @@ MIN_DELAY = 1
 def main():
     moonsquare()
 
+
+
+
 def moonsquare():
     dai = interface.IERC20(DAI)
     print("loading dai and link Interfaces...")
@@ -42,11 +48,11 @@ def moonsquare():
     )
     boxAddress = box.address
     print("tranfering link to moonSquare contract...")
-    link.transfer(
-        boxAddress,
-        convert.to_uint("10000000000000000000"),
-        {"from": account}
-    )
+    #link.transfer(
+    #    boxAddress,
+    #    convert.to_uint("10000000000000000000"),
+    #    {"from": account}
+    #)
     print("checking chainlnk aggregator")
     print(box.getTime())
     print("adding asset and aggregator")
@@ -57,7 +63,7 @@ def moonsquare():
     )
     print("setting moon Price...")
     box.setMoonPrice(
-        4777468576992,
+        47774,
         "BTC",
         {"from": account}
     )
@@ -83,10 +89,8 @@ def moonsquare():
         convert.to_string("BTC"),
         convert.to_address("0x6135b13325bfC4B00278B4abC5e20bbce2D6580e"),
         {"from": account}
-
     )
-
-    ##dai.approve(boxAddress, 10000000000000000000, {"from":account})
+    print(f"time is {dr.getTime()}")
     governance_token = (
         BMSGToken.deploy(
             fDaix,
@@ -101,7 +105,7 @@ def moonsquare():
         else BMSGToken[-1]
     )
     daoAddress = governance_token.address
-    governance_token.delegate(account, {"from": account})
+    #governance_token.delegate(account, {"from": account})
     print(f"Checkpoints: {governance_token.numCheckpoints(account)}")
     governance_time_lock = (
         GovernanceTimeLock.deploy(
@@ -116,14 +120,18 @@ def moonsquare():
         if len(GovernanceTimeLock) <= 0
         else GovernanceTimeLock[-1]
     )
-    governor = MyGovernor.deploy(
-        governance_token.address,
-        governance_time_lock.address,
-        #QUORUM_PERCENTAGE,
-        #VOTING_PERIOD,
-        #VOTING_DELAY,
-        {"from": account},
-        publish_source=config["networks"][network.show_active()].get("verify", True),
+    governor = (
+        MyGovernor.deploy(
+            governance_token.address,
+            governance_time_lock.address,
+            #QUORUM_PERCENTAGE,
+            #VOTING_PERIOD,
+            #VOTING_DELAY,
+            {"from": account},
+            publish_source=config["networks"][network.show_active()].get("verify", True),
+        )
+        if len(MyGovernor) <= 0
+        else MyGovernor[-1]
     )
     # Now, we set the roles...
     # Multicall would be great here ;)
@@ -166,8 +174,49 @@ def moonsquare():
         else MoneyHandler[-1]
     )
 
+    def moon_transactions(index):
+        if index ==1:
+            account1 = accounts.add(config["wallets"]["from_test1"])
+        if index ==2:
+            account1 = accounts.add(config["wallets"]["from_test2"])
+        elif index ==3:
+            account1 = accounts.add(config["wallets"]["from_test3"])
+        i = 1
+        while i <= 3:
+            time = chain.time()
+            prediction = randrange(time, (time + 84000))
+            market = "BTC"
+            dai.approve(boxAddress, 10000000000000000000, {"from":account1})
+            box.predictAsset(prediction, "BTC", {"from": account1})
+            i+=1
 
-    #tx = box.transferOwnership(GovernanceTimeLock[-1], {"from": account})
+    i = 1
+    while i <= 3:
+        moon_transactions(i)
+        i+=1
+
+    def daily_transactions(index):
+        if index ==1:
+            account1 = accounts.add(config["wallets"]["from_test1"])
+        if index ==2:
+            account1 = accounts.add(config["wallets"]["from_test2"])
+        elif index ==3:
+            account1 = accounts.add(config["wallets"]["from_test3"])
+        i = 1
+        while i <= 3:
+            price = dr.getPrice(0)
+            prediction = randrange(price, ((price + 900000000000) or (price + 900000000000)))
+            market = "BTC"
+            dai.approve(dr.address, 10000000000000000000, {"from":account1})
+            dr.predictClosePrice(market, prediction, {"from": account1})
+            i+=1
+
+    i = 1
+    while i <= 3:
+        daily_transactions(i)
+        i+=1
+    
+        #tx = box.transferOwnership(GovernanceTimeLock[-1], {"from": account})
     #tx.wait(1)
 
 

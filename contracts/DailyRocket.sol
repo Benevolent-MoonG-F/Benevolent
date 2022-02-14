@@ -179,7 +179,7 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
         dayCount++;
     }
 
-    function getDifference(int256 closePrice, int256 playerPrice) private view returns(int256) {
+    function getDifference(int256 closePrice, int256 playerPrice) private pure returns(int256) {
         if(closePrice > playerPrice) {
             return closePrice - playerPrice;
         } else {
@@ -187,7 +187,7 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
         }
     }
 
-    function getWinner(int256 closePrice, int256 playerPrice, int256 difference) private view returns(bool) {
+    function getWinner(int256 closePrice, int256 playerPrice, int256 difference) private pure returns(bool) {
         if(closePrice > playerPrice) {
             return (closePrice - difference) == playerPrice;
         } else if (closePrice < playerPrice){
@@ -205,7 +205,7 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
     function getPrice(uint256 _aggindex) public view returns(int){
         AggregatorV3Interface priceFeed = AggregatorV3Interface(assetPriceAggregators[_aggindex]);
         (,int answer,,,) = priceFeed.latestRoundData();
-         return int(answer);
+         return int(answer/100000000);
     }
 
     function claimWinnings(
@@ -242,8 +242,9 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
         bytes calldata checkData
     ) external view override returns (
         bool upkeepNeeded, bytes memory performData
-    ) {
-        if (dayCloseTime[dayCount] + 86400 seconds == getTime()){
+    )
+    {
+        if (dayCloseTime[dayCount - 1] + 86400 seconds == getTime()){
             upkeepNeeded = true;
             performData = abi.encodePacked(uint256(0));
             return (true, abi.encodePacked(uint256(0)));

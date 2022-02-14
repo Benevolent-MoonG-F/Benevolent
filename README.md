@@ -24,7 +24,7 @@ brownie pm intsall <package>
 export PRIVATE_KEY="0xhdgfyugwOFGF..."
 ```
 ```
-brownie run scripts/deploy_for_test.py --network <network>
+brownie run scripts/deploy_for_test.py --network kovan
 ```
 ```
 dai kovan address: 0xFf795577d9AC8bD7D90Ee22b6C1703490b6512FD

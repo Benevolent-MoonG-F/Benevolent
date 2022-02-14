@@ -12,7 +12,7 @@ import "../interfaces/DataTypes.sol";
 import "../interfaces/ILendingPoolAddressesProvider.sol";
 import "../interfaces/ILendingPool.sol";
 
-import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {IERC20} from "../interfaces/IERC20.sol";
 
 import "../interfaces/IRedirect.sol";
 import "../interfaces/IGovernanceToken.sol";
@@ -169,7 +169,7 @@ contract MoonSquares is KeeperCompatibleInterface, Ownable {
     function getPrice(string memory market) public view returns(int256){
         AggregatorV3Interface priceFeed = AggregatorV3Interface(assetToAggregator[market]); 
         (,int256 answer,,,) = priceFeed.latestRoundData();
-        return int256(answer);
+        return int256(answer/100000000);
     }
 
     //gets the current time
@@ -267,7 +267,7 @@ contract MoonSquares is KeeperCompatibleInterface, Ownable {
 
     function performUpkeep(bytes calldata performData) external override {
         uint256 decodedValue = abi.decode(performData, (uint256));
-        if(decodedValue <= allowedAssets.length){
+        if(decodedValue < allowedAssets.length){
             setTime(allowedAssets[decodedValue]);
         }
         if (decodedValue ==1000) {
