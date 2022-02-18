@@ -1,44 +1,45 @@
 //SPDX-License-Identifier: MIT
+
 pragma solidity ^0.8.10;
 
 import "../interfaces/DataTypes.sol";
 import "../interfaces/ILendingPoolAddressesProvider.sol";
 import "../interfaces/ILendingPool.sol";
 import "../interfaces/TransferHelper.sol";
-import "../interfaces/IMoonSquares.sol";
 
 import "@chainlink/contracts/src/v0.8/interfaces/KeeperCompatibleInterface.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 //import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-
+import "../interfaces/IHandler.sol";
 
 contract DailyRocket is Ownable, KeeperCompatibleInterface {
 
-    ILendingPoolAddressesProvider provider = ILendingPoolAddressesProvider(
+    ILendingPoolAddressesProvider private provider = ILendingPoolAddressesProvider(
         address(0x88757f2f99175387aB4C6a4b3067c77A695b0349)
     );  
-    ILendingPool lendingPool = ILendingPool(provider.getLendingPool());
-    
-    IMoonSquares public moonSquare;
+    ILendingPool private lendingPool = ILendingPool(provider.getLendingPool());
+
+    IHandler private handler;
 
     uint128 public dayCount;//Kepps track of the days
+    
+    AggregatorV3Interface private priceFeed;
 
-    string[] public predictableAssets;//all assets that a user can predict
-    address[] assetPriceAggregators;
+    string public assetName;  
 
-    mapping(string => bool) public activeAsset;
+    mapping(uint256 => mapping(address => uint256[])) public addressBets;
 
     struct DayInfo {
         int256 closePrice;
-        uint256 noOfPlayers;
         uint256 noOfWinners;
         uint256 totalAmount;
         uint256 totalBets;
+        int256 leastDifference;
     }
 
-    mapping(uint => mapping(string => DayInfo)) public dayAssetInfo;
+    mapping(uint256 => DayInfo) public dayAssetInfo;
 
     mapping(uint256 => uint256) dayCloseTime; //Closing Time for every asset
     
@@ -50,14 +51,11 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
 
     //mapping(uint256 => mapping(string => address[])) public dayAssetPredictors;
 
-    event Predicted(address indexed _placer, int256 _prediction);
+    event Predicted(address indexed _placer, uint256 indexed _betId, int256 _prediction, uint256 _time);
 
     event SentToIBA(uint256 indexed amount, uint256 indexed day);
     
-    struct Charity {
-        bytes8 name;
-        bytes32 link; //sends people to the charity's official site
-    }
+
     struct Prediction {
         address owner;
         int256 prediction;
@@ -65,119 +63,121 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
         bool isWinner;
         bool paid;
     }
-    
-    mapping (address => Charity) public presentCharities;
-
-    mapping(uint128 => mapping(string => address[])) public dailyAssetWinners;
 
     //user and their prediction
-    mapping(uint128 => mapping(string => mapping(uint256 => Prediction))) public dayAssetUserPrediction;
+    mapping(uint128 => mapping(uint256 => Prediction)) public dayBetIdInfo;
 
     constructor(
-        //address _dai,
-        IMoonSquares _moonsqr
+        string memory _asset,
+        AggregatorV3Interface agg,
+        IHandler _handler
         )
     {
-        //AcceptedTokens.push(_dai);
-        moonSquare = _moonsqr;
+        assetName = _asset;
+        priceFeed = agg;
+        handler = _handler;
         contractStartTime = block.timestamp;
         dayCount = 1;
-        dayCloseTime[dayCount] = contractStartTime + 86400 seconds;//adds a day to the start time. to change to an input later.
+        dayCloseTime[dayCount - 1] = block.timestamp;//adds a day to the start time. to change to an input later.
     }//instantiate the token addresses upon deployment
 
 
     function setNewClosingPrice() internal {
-        for (uint256 i = 0; i < assetPriceAggregators.length; i++){
-            dayAssetInfo[dayCount][predictableAssets[i]].closePrice = getPrice(i);
-        }
+        dayAssetInfo[dayCount].closePrice = getPrice();
     }
 /*
     used to simulate winners for testing
 */
 
-    function setClosingPrice(string memory market, int price) public {
-        dayAssetInfo[dayCount][market].closePrice = price;
+    function setClosingPrice(int price) public {
+        dayAssetInfo[dayCount].closePrice = price;
+    }
+
+    function getAddressTotoalBets(uint256 day_, address user_) public returns(uint256) {
+        return addressBets[day_][user_].length;
     }
 
 
-    function addAssetAndAgg(string memory _asset, address _aggregator) public onlyOwner {
-        predictableAssets.push(_asset);
-        assetPriceAggregators.push(_aggregator);
-        activeAsset[_asset] = true;
-    }
-
-    function predictClosePrice(
-        string memory _asset, 
+    function predictClosePrice( 
         int _prediction
     ) public
     {   
-        require(activeAsset[_asset] == true);
         if (dayCount > 1) {
-            require(getTime() <= dayCloseTime[dayCount -1] + 64800 seconds);//After this time, one cannot
+            require(getTime() <= dayCloseTime[dayCount -1] + 20 hours);//After this time, one cannot
         }
         uint256 amount = 10000000000000000000;//the amount we set for the daily close
-        uint256 betId = dayAssetInfo[dayCount][_asset].totalBets;
+        uint256 betId = dayAssetInfo[dayCount].totalBets;
         require(IERC20(Dai).allowance(msg.sender, address(this)) >= uint(amount));
         IERC20(Dai).transferFrom(msg.sender, address(this), uint(amount));
         
-        dayAssetInfo[dayCount][_asset].totalAmount += amount;
+        dayAssetInfo[dayCount].totalAmount += amount;
         //Updates The prediction mapping
-        dayAssetUserPrediction[dayCount][_asset][betId] = Prediction(
+        dayBetIdInfo[dayCount][betId] = Prediction(
             msg.sender,
             _prediction,
             getTime(),
             false,
             false
         );
-        dayAssetInfo[dayCount][_asset].totalBets +=1;
+        addressBets[dayCount][msg.sender].push(betId);
+        dayAssetInfo[dayCount].totalBets +=1;
 
-        emit Predicted(msg.sender, _prediction);
+        emit Predicted(msg.sender, betId, _prediction, block.timestamp);
     }
 
+
+    function _getVictor() private {
+        for (uint8 p = 0; p <= dayAssetInfo[dayCount].totalBets; p++){
+            int256 difference_ = dayAssetInfo[dayCount].leastDifference;
+            if
+            (
+                getWinner(
+                    dayAssetInfo[dayCount].closePrice,
+                    dayBetIdInfo[dayCount][p].prediction,
+                    difference_
+                ) == true
+            ) {
+                dayBetIdInfo[dayCount][p].isWinner = true;
+                dayAssetInfo[dayCount].noOfWinners +=1;
+            }
+        }
+        dayCount+=1;
+    }
+
+    function selectWinner() private {
+        int256 difference = dayAssetInfo[dayCount].closePrice;
+        for (uint8 p = 0; p <= dayAssetInfo[dayCount].totalBets; p++){
+            if 
+            (
+                getDifference(
+                    dayAssetInfo[dayCount].closePrice,
+                    dayBetIdInfo[dayCount][p].prediction
+                ) < difference
+            ) {
+                    difference = getDifference(
+                        dayAssetInfo[dayCount].closePrice,
+                        dayBetIdInfo[dayCount][p].prediction
+                    );
+            }
+        }
+        dayAssetInfo[dayCount].leastDifference = difference;
+    }
+/*
     function setNumberOfWinners() public {
         uint128 day = dayCount;
-        for (uint8 i = 0; i < predictableAssets.length; i++) {
-            for (uint8 p = 0; p <= dayAssetInfo[day][predictableAssets[i]].totalBets; p++) {
-                if (
-                    dayAssetUserPrediction[day][predictableAssets[i]][p].prediction
-                    ==
-                    dayAssetInfo[day][predictableAssets[i]].closePrice
-                ) {
-                    dayAssetUserPrediction[day][predictableAssets[i]][p].isWinner = true;
-                    dayAssetInfo[day][predictableAssets[i]].noOfWinners +=1;
-                }
-
-                if (dayAssetInfo[day][predictableAssets[i]].noOfWinners == 0) {
-                    int256 difference = 0;
-                    if 
-                    (
-                        getDifference(
-                            dayAssetInfo[day][predictableAssets[i]].closePrice,
-                            dayAssetUserPrediction[day][predictableAssets[i]][p].prediction
-                        ) < difference
-                    ) {
-                            difference = getDifference(
-                                dayAssetInfo[day][predictableAssets[i]].closePrice,
-                                dayAssetUserPrediction[day][predictableAssets[i]][p].prediction
-                            );
-                    }
-                    if (
-                        getWinner(
-                            dayAssetInfo[day][predictableAssets[i]].closePrice,
-                            dayAssetUserPrediction[day][predictableAssets[i]][p].prediction,
-                            difference
-                        ) == true
-                    ) {
-                        dayAssetUserPrediction[day][predictableAssets[i]][p].isWinner = true;
-                        dayAssetInfo[day][predictableAssets[i]].noOfWinners +=1;
-                    }
-
-                }
-
+        for (uint8 p = 0; p <= dayAssetInfo[day][predictableAssets[i]].totalBets; p++) {
+            if (
+                dayAssetUserPrediction[day][predictableAssets[i]][p].prediction
+                ==
+                dayAssetInfo[day][predictableAssets[i]].closePrice
+            ) {
+                dayAssetUserPrediction[day][predictableAssets[i]][p].isWinner = true;
+                dayAssetInfo[day][predictableAssets[i]].noOfWinners +=1;
             }
         }
         dayCount++;
     }
+*/
 
     function getDifference(int256 closePrice, int256 playerPrice) private pure returns(int256) {
         if(closePrice > playerPrice) {
@@ -197,88 +197,75 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
 
 
     function getTime() public view returns(uint){
-        AggregatorV3Interface priceFeed = AggregatorV3Interface(0x6135b13325bfC4B00278B4abC5e20bbce2D6580e);
         (,,,uint answer,) = priceFeed.latestRoundData();
          return uint(answer);
     }
 
-    function getPrice(uint256 _aggindex) public view returns(int){
-        AggregatorV3Interface priceFeed = AggregatorV3Interface(assetPriceAggregators[_aggindex]);
+    function getPrice() public view returns(int){
         (,int answer,,,) = priceFeed.latestRoundData();
          return int(answer/100000000);
     }
 
     function claimWinnings(
         uint128 _day,
-        string memory _asset,
         uint256 betId,
         bytes8 _charity
     ) external {
         //logic to see if the person had a winning prediction
         require(
-            dayAssetUserPrediction[_day][_asset][betId].isWinner == true 
+            dayBetIdInfo[_day][betId].isWinner == true 
             && 
-            dayAssetUserPrediction[_day][_asset][betId].paid == false
+            dayBetIdInfo[_day][betId].paid == false
         );
-        uint256 winners = dayAssetInfo[_day][_asset].noOfWinners;
-        address winner = dayAssetUserPrediction[_day][_asset][betId].owner;
+        uint256 winners = dayAssetInfo[_day].noOfWinners;
+        address winner = dayBetIdInfo[_day][betId].owner;
         IERC20(Dai).transfer(
             winner, 
-            ((dayAssetInfo[_day][_asset].totalAmount) * 90/100)/winners
+            ((dayAssetInfo[_day].totalAmount) * 90/100)/winners
         );
-        dayAssetUserPrediction[_day][_asset][betId].paid = true;
-        moonSquare.voteForCharity(_charity);
+        dayBetIdInfo[_day][betId].paid = true;
+        handler.voteForCharity(_charity);
     }
 
     function isAwinner(
         uint128 _day,
-        string memory _asset,
         uint256 checked
     ) public view returns(bool){
-        return dayAssetUserPrediction[_day][_asset][checked].isWinner;
+        return dayBetIdInfo[_day][checked].isWinner;
     }
     
     function checkUpkeep(
-        bytes calldata checkData
+        bytes calldata /*checkData*/
     ) external view override returns (
         bool upkeepNeeded, bytes memory performData
     )
     {
-        if (dayCloseTime[dayCount - 1] + 86400 seconds == getTime()){
-            upkeepNeeded = true;
-            performData = abi.encodePacked(uint256(0));
-            return (true, abi.encodePacked(uint256(0)));
-        }
+        upkeepNeeded = (dayCloseTime[(dayCount - 1)] + 86400 seconds) >= getTime();
         
     }
     
     function performUpkeep(bytes calldata performData) external override {
-         uint256 decodedValue = abi.decode(performData, (uint256));
-        if (decodedValue == 0) {
-            dayCloseTime[dayCount] == block.timestamp;
+        if ((dayCloseTime[(dayCount - 1)] + 86400 seconds) >= getTime()) {
+            dayCloseTime[dayCount] = block.timestamp;
             setNewClosingPrice();
-            setNumberOfWinners();
+            selectWinner();
             sendToIba();
-            dayCount++;
+            _getVictor();
         }
     }
     
     //sends non winnings to an interest bearibg account 
     function sendToIba() public {
         require(getTime() > dayCloseTime[dayCount -1] + 64800 seconds);
-        for (uint128 i = 0; i < predictableAssets.length; i++) {
-            uint amount = ((dayAssetInfo[dayCount][predictableAssets[i]].totalAmount) * 10/100);
-            IERC20(Dai).approve(address(lendingPool), amount);
-            lendingPool.deposit(
-                Dai,
-                uint(amount),
-                address(moonSquare),
-                0
-            );
-            moonSquare.acountForDRfnds(uint(amount));
-            emit SentToIBA(uint(amount), dayCount);
-            
-            //remember to account for funds in moonsquare contract
-        }
-    }    
+        uint amount = ((dayAssetInfo[dayCount].totalAmount) * 10/100);
+        IERC20(Dai).approve(address(lendingPool), amount);
+        lendingPool.deposit(
+            Dai,
+            uint(amount),
+            address(handler),
+            0
+        );
+        handler.acountForDRfnds();
+        emit SentToIBA(uint(amount), dayCount);   
+    }
 }

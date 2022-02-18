@@ -1,4 +1,5 @@
 //SPDX-License-Identifier: MIT
+
 pragma solidity ^0.8.10;
 pragma abicoder v2;
 
@@ -15,7 +16,6 @@ import "../interfaces/ILendingPool.sol";
 import {IERC20} from "../interfaces/IERC20.sol";
 
 import "../interfaces/IRedirect.sol";
-import "../interfaces/IGovernanceToken.sol";
 
 import "../interfaces/IHandler.sol";
 
@@ -23,22 +23,8 @@ import "../interfaces/IHandler.sol";
 //make it a super app to allow using superfluid flows and instant distribution
 contract MoonSquares is KeeperCompatibleInterface, Ownable {
 
-    string[] public allowedAssets;//All assets that are predicted on the platform
-    
-    address[] private assetPriceAggregators;
-
-    address[] public contracts;
-
-    mapping(string => address) public assetToAggregator;
-
-    mapping(string => uint256) public coinRound;
-    //uint128 public coinRound;
-
-    uint128 public monthCount;
-
-    uint public payroundStartTime;
-
-    uint128 constant payDayDuration = 30 days;
+    string public assetName;
+    uint256 public coinRound;
 
     uint public totalPaid;
 
@@ -51,18 +37,14 @@ contract MoonSquares is KeeperCompatibleInterface, Ownable {
 
     //ISwapRouter public immutable swapRouter;
     //uint24 public constant poolFee = 3000;
-    
-    IRedirect private flowDistrubuter;
-    IGovernanceToken private governanceToken;
-    IHandler private handler;
+    IHandler public handler;
+    AggregatorV3Interface private priceFeed;
 
     address private Dai = 0xFf795577d9AC8bD7D90Ee22b6C1703490b6512FD;
-    address private _aaveToken = 0xdCf0aF9e59C002FA3AA091a46196b37530FD48a8;
     address private Daix = 0x43F54B13A0b17F67E61C9f0e41C3348B3a2BDa09;
     
-    mapping (uint256 => uint256) public roundInterestEarned;
 //
-    mapping(uint256 => mapping(string => RoundInfo)) public roundCoinInfo;
+    mapping(uint256 => RoundInfo) public roundInfo;
     struct RoundInfo {
         int256 moonPrice;
         uint256 winnings;
@@ -85,159 +67,146 @@ contract MoonSquares is KeeperCompatibleInterface, Ownable {
         bool isWinner;
         bool paid;
     }
-    
-    struct Charity {
-        bytes8 name;
-        bytes32 link; //sends people to the charity's official site
-    }
 
-    mapping (address => Charity) public presentCharities;
+    mapping (uint256 => mapping (uint256 => Bet)) public roundIdBetInfo;
 
-    bytes8[] charities;
-    address[] charityAddress;
-    
-    mapping(uint128 => mapping(bytes8 => uint128)) public roundCharityVotes;
-    
-    mapping(uint128 => address) public roundVoteResults;
+    mapping (uint256 => mapping (address => uint256[])) public roundAddressBetIds;
 
-    mapping (uint256 => mapping( string => mapping (uint256 => Bet))) public roundCoinAddressBetsPlaced;
 
     mapping (address => uint256) totalAmountPlayed;//shows how much every player has placed
 
-    event Predicted(address indexed _placer, uint256 _start, uint _end);
-
-    event CharityThisMonth(address indexed charityAddress_, bytes8 indexed name_);
+    event Predicted(uint256 indexed _betId, address sender, uint256 _start);
     
 
-    constructor() {
-        payroundStartTime = block.timestamp;
-    }
-
-    modifier isAllowedContract() {
-        for (uint i =0; i< contracts.length; i++) {
-            require(contracts[i] == msg.sender);
-        }
-        _;
+    constructor(
+        string memory _asset,
+        AggregatorV3Interface feed_,
+        IHandler handler_
+    ) {
+        assetName = _asset;
+        priceFeed = feed_;
+        handler = handler_;
     }
 
     function _updateStorage(
-        uint _start,
-        string memory market
+        uint _start
     ) internal {
-        uint betId = roundCoinInfo[coinRound[market]][market].totalBets;
-        roundCoinAddressBetsPlaced[coinRound[market]][market][betId].timePlaced = getTime();
-        roundCoinAddressBetsPlaced[coinRound[market]][market][betId].squareStartTime = _start;
-        
-        roundCoinAddressBetsPlaced[coinRound[market]][market][betId].squareEndTime  = (_start + 1800 seconds);
-        roundCoinAddressBetsPlaced[coinRound[market]][market][betId].owner = msg.sender;
-        roundCoinInfo[coinRound[market]][market].totalBets +=1;
-
+        uint betId = roundInfo[coinRound].totalBets;
+        roundIdBetInfo[coinRound][betId] = Bet(
+            block.timestamp,
+            _start,
+            (_start + 300 seconds),
+            msg.sender,
+            false,
+            false
+        );
+        roundAddressBetIds[coinRound][msg.sender].push(betId);
     } 
     //predicts an asset
+
+
+    function getAddressRoundbets(uint256 round_, address sender_) public view returns(uint256) {
+        return roundAddressBetIds[round_][sender_].length;
+    }
    function predictAsset(
-        uint256 _start, 
-        string memory market
+        uint256 _start
     ) external
     {   
-        uint amount = 10000000000000000000;
-        uint duration = 300 seconds;
+        uint amount = 10 ether;
+        //uint duration = 300 seconds;
         require(_start > block.timestamp);
         require(IERC20(Dai).allowance(msg.sender, address(this)) >= amount);
         IERC20(Dai).transferFrom(msg.sender, address(this), amount);
         //update the total value played
-        roundCoinInfo[coinRound[market]][market].totalStaked += amount;
-        roundCoinInfo[coinRound[market]][market].winnings += 9000000000000000;
+        roundInfo[coinRound].totalStaked += amount;
+        roundInfo[coinRound].winnings += 9000000000000000000;
         totalStaked += amount;
         aaveDeposit(amount);
-        _updateStorage(_start, market);
-        emit Predicted(msg.sender, _start, (_start + duration));
+        handler.acountForDRfnds();
+        _updateStorage(_start);
+        emit Predicted(roundInfo[coinRound].totalBets, msg.sender, _start);
+        roundInfo[coinRound].totalBets +=1;
     }
 
 
-
-    function aaveDeposit(uint amount) internal {
+    function aaveDeposit(uint amount) private {
         IERC20(Dai).approve(address(lendingPool), amount);
         lendingPool.deposit(
             Dai,
             amount,
-            address(this),
+            address(handler),
             0
         );
     }
 
     //gets the price of the asset denoted by market
-    function getPrice(string memory market) public view returns(int256){
-        AggregatorV3Interface priceFeed = AggregatorV3Interface(assetToAggregator[market]); 
+    function getPrice() public view returns(int256){
         (,int256 answer,,,) = priceFeed.latestRoundData();
         return int256(answer/100000000);
     }
 
     //gets the current time
     function getTime() public view returns(uint256){
-        AggregatorV3Interface priceFeed = AggregatorV3Interface(0x6135b13325bfC4B00278B4abC5e20bbce2D6580e);
         //Matic network
         (,,,uint256 answer,) = priceFeed.latestRoundData();
          return uint256(answer);
     }
 
     //it 
-    function _checkIndexes(string memory market, uint p) internal view returns(bool){
+    function _checkIndexes( uint betId) internal view returns(bool){
         if (
-            roundCoinAddressBetsPlaced[coinRound[market]][market][p].squareStartTime >= roundCoinInfo[coinRound[market]][market].winningTime
+            roundIdBetInfo[coinRound][betId].squareStartTime >= roundInfo[coinRound].winningTime
             &&
-            roundCoinAddressBetsPlaced[coinRound[market]][market][p].squareEndTime <= roundCoinInfo[coinRound[market]][market].winningTime
+            roundIdBetInfo[coinRound][betId].squareEndTime <= roundInfo[coinRound].winningTime
         ) {
             return true;
         } else {
             return false;
         }
     }
-    function setWinningBets(string memory market) internal {
+    function setWinningBets() internal {
 
-        for (uint256 p =0; p <= roundCoinInfo[coinRound[market]][market].totalBets; p++) {
-            if (_checkIndexes(market, p) == true){
-                roundCoinAddressBetsPlaced[coinRound[market]][market][p].isWinner = true;
-                roundCoinInfo[coinRound[market]][market].numberOfWinners += 1;
+        for (uint256 p =0; p <= roundInfo[coinRound].totalBets; p++) {
+            if (_checkIndexes(p) == true){
+                roundIdBetInfo[coinRound][p].isWinner = true;
+                roundInfo[coinRound].numberOfWinners += 1;
             }
         }
     }
 
     function isAwiner(
         uint256 _round,
-        string memory market,
         uint256 checkedId
     )public view returns(bool) {
-        return roundCoinAddressBetsPlaced[coinRound[market]][market][checkedId].isWinner;
+        return roundIdBetInfo[coinRound][checkedId].isWinner;
 
     }
-    //should use superflid's flow if its just one user & instant distribution if there are several winners
 
      function takePrize(
          uint round,
-         string memory market,
          uint256 betId,
          bytes8 charity
     ) external {
-        require(roundCoinInfo[round][market].numberOfWinners != 0);
+        require(roundInfo[round].numberOfWinners != 0);
         require(
-            roundCoinAddressBetsPlaced[round][market][betId].isWinner == true
+            roundIdBetInfo[round][betId].isWinner == true
             &&
-            roundCoinAddressBetsPlaced[round][market][betId].paid == false
+            roundIdBetInfo[round][betId].paid == false
         );
-        uint paids = roundCoinInfo[coinRound[market]][market].winnings/roundCoinInfo[coinRound[market]][market].numberOfWinners;
+        uint paids = roundInfo[round].winnings/roundInfo[round].numberOfWinners;
         IERC20(Dai).transfer(
-            roundCoinAddressBetsPlaced[round][market][betId].owner,
-            (roundCoinInfo[coinRound[market]][market].winnings/paids)
+            roundIdBetInfo[round][betId].owner,
+            (paids)
         );
         totalPaid += paids;
-        roundCoinAddressBetsPlaced[round][market][betId].paid = true;
-        roundCharityVotes[monthCount][charity] += 1;
+        roundIdBetInfo[round][betId].paid = true;
+        handler.voteForCharity(charity);
     }
 
-    function setTime(string memory market) public {
-        roundCoinInfo[coinRound[market]][market].winningTime = getTime();
-        setWinningBets(market);
-        withdrawRoundFundsFromIba(market);
+    function setTime() public {
+        roundInfo[coinRound].winningTime = getTime();
+        setWinningBets();
+        withdrawRoundFundsFromIba();
     }
 
     function checkUpkeep(
@@ -245,128 +214,29 @@ contract MoonSquares is KeeperCompatibleInterface, Ownable {
     ) external view override returns (
         bool upkeepNeeded, bytes memory performData
     ) {
-        for (uint256 p = 0; p < allowedAssets.length; p++) {
-        
-            if (
-                getPrice(allowedAssets[p])
-                ==
-                roundCoinInfo[coinRound[allowedAssets[p]]][allowedAssets[p]].moonPrice
-            ) {
-                upkeepNeeded = true;
-                performData = abi.encodePacked(uint256(p));
-                return (true, performData);
-            }
-        }
-        if (block.timestamp >= payroundStartTime + 30 days) {
-            upkeepNeeded = true;
-            performData = abi.encodePacked(uint256(1000));
-            return (true, performData);
-        }
-        
+        upkeepNeeded = (getPrice() == roundInfo[coinRound].moonPrice);
     }
 
     function performUpkeep(bytes calldata performData) external override {
-        uint256 decodedValue = abi.decode(performData, (uint256));
-        if(decodedValue < allowedAssets.length){
-            setTime(allowedAssets[decodedValue]);
-        }
-        if (decodedValue ==1000) {
-            payroundStartTime +=30 days;
-            withdrawInterest(_aaveToken);
-            flowToPaymentDistributer();
-            distributeToMembers();
-        }
-    }
-
-    function setwinningCharity() public {
-        uint128 winning_votes = 0;
-        uint index = 0;
-        for (uint i =0; i < charities.length; i++) {
-            if (roundCharityVotes[monthCount][charities[i]] > winning_votes){
-                winning_votes == roundCharityVotes[monthCount][charities[i]];
-            }
-            if (roundCharityVotes[monthCount][charities[i]] == winning_votes) {
-                roundVoteResults[monthCount] = charityAddress[i];
-                index = i;
-            }
-        }
-        flowDistrubuter.changeReceiverAdress(roundVoteResults[monthCount]);
-        emit CharityThisMonth(roundVoteResults[monthCount], charities[index]);
+        setTime();
     }
 
     //withdraws the total Amount after the moonpice gets hit
-    function withdrawRoundFundsFromIba(string memory market) private {
-        require(roundCoinInfo[coinRound[market]][market].numberOfWinners != 0);
-        lendingPool.withdraw(
-            Dai,
-            roundCoinInfo[coinRound[market]][market].winnings,
-            address(this)
-        );
-        
+    function withdrawRoundFundsFromIba() private {
+        require(roundInfo[coinRound].numberOfWinners != 0);
+        handler.withdrawRoundFunds(roundInfo[coinRound].winnings);
+            
+
         //Withdraws Funds from the predictions
     }
 
-    function distributeToMembers() private {
-        require(monthCount != 0);
-        uint256 cashAmount = IERC20(Daix).balanceOf(address(governanceToken));
-        governanceToken.distribute(
-            cashAmount
-        );
-    }
-
-    function withdrawInterest(address aaveToken) private returns(uint) {
-        uint aaveBalance = IERC20(aaveToken).balanceOf(address(this));
-        uint interest = aaveBalance - (totalStaked - totalPaid);
-        lendingPool.withdraw(
-            Dai,
-            interest,
-            address(handler)
-        );
-        handler.upgradeToken(interest);
-        roundInterestEarned[monthCount] = interest;
-        return(interest);
-        //remember to upgrade the dai for flow
-        //verify which token is getting upgraded
-
-    }
-    //distributes the Interest Earned on the round to members of the Dao
-    function flowToPaymentDistributer() private {
-        //Flows interest earned from the protocal to the redirectAll contract that handles distribution
-            //Flow Winnings
-        int256 toInt = int256(roundInterestEarned[monthCount]);
-        handler.createFlow(int96(toInt / 30 days));
-        monthCount += 1;
-    }
-
-    function addAssetsAndAggregators(
-        string memory _asset,
-        address _aggregator
-    ) external onlyOwner {
-        require(allowedAssets.length < 100);
-        assetToAggregator[_asset] = _aggregator;
-        allowedAssets.push(_asset);
-        assetPriceAggregators.push(_aggregator);
-    }
-
-    function addCharity(
-        bytes8 _charityName,
-        address _charityAddress,
-        bytes32 _link
-    ) external onlyOwner {
-        presentCharities[_charityAddress].name = _charityName;
-        presentCharities[_charityAddress].link = _link;
-        charities.push(_charityName);
-        charityAddress.push(_charityAddress);
-    }
-
     function setMoonPrice(
-        int price,
-        string memory market
+        int price
     ) external onlyOwner {
-        roundCoinInfo[coinRound[market]][market] = RoundInfo(
+        roundInfo[coinRound] = RoundInfo(
             price,
             0,
-            getPrice(market),
+            getPrice(),
             0,
             getTime(),
             0,
@@ -375,24 +245,5 @@ contract MoonSquares is KeeperCompatibleInterface, Ownable {
         );
 
     }
-    //puts the 10% from daily rocket into account
-    function acountForDRfnds(uint amount) external isAllowedContract {
-        totalStaked += amount;
-    }
-    function voteForCharity(bytes8 charity) external isAllowedContract {
-        roundCharityVotes[monthCount][charity] += 1;
-    }
 
-    //adds contracts that call core funtions
-    function addContract(address _conAddress) external onlyOwner{
-        contracts.push(_conAddress);
-    }
-
-    function addGovernanceToken(IGovernanceToken _gtAdress) external isAllowedContract {
-        governanceToken = _gtAdress;
-    }
-    //adds the flow distributor
-    function addFlowDistributor(IRedirect addr) external onlyOwner {
-        flowDistrubuter = addr;
-    }
 }

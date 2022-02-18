@@ -137,7 +137,6 @@ contract BMSGToken is ERC20Votes, SuperAppBase, Ownable {
     function _transfer(address sender, address recipient, uint256 amount) internal override {
         uint128 senderUnits = uint128(ERC20.balanceOf(sender));
         uint128 recipientUnits = uint128(ERC20.balanceOf(recipient));
-        // first try to do ERC20 transfer
         ERC20._transfer(sender, recipient, amount);
 
         _host.callAgreement(

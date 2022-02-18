@@ -7,3 +7,4 @@ reports/
 tests/
 build/
 node_modules/
+contracts/BMSNFT.sol
