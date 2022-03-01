@@ -28,26 +28,19 @@ contract RedirectAll is SuperAppBase, Ownable {
     IConstantFlowAgreementV1 private _cfa; // the stored constant flow agreement class address
     ISuperToken private _acceptedToken; // accepted token
     address[2] public _receiver;
-    address MoonSquareAddress;
+    address handlerAddress;
 
     constructor(
         ISuperfluid host,
         IConstantFlowAgreementV1 cfa,
         ISuperToken acceptedToken,
-        //address dev,
         address dao,
-        address moon) {
-        require(address(host) != address(0), "host is zero address");
-        require(address(cfa) != address(0), "cfa is zero address");
-        require(address(acceptedToken) != address(0), "acceptedToken is zero address");
-        //require(address(dev) != address(0), "receiver is zero address");
-        //require(!host.isApp(ISuperApp(dev)), "receiver is an app");
-
+        address handler_
+    ) {
         _host = host;
         _cfa = cfa;
         _acceptedToken = acceptedToken;
-        MoonSquareAddress = moon;
-        //_receiver.push(dev);
+        handlerAddress = handler_;
         _receiver[0] = dao;
 
         uint256 configWord =
@@ -138,12 +131,12 @@ contract RedirectAll is SuperAppBase, Ownable {
       }
     }
 
-    modifier onlyMoonSquares() {
-        require(msg.sender == MoonSquareAddress);
+    modifier onlyhandler() {
+        require(msg.sender == handlerAddress);
         _;
     }
 
-    function changeReceiverAdress(address _newReceiver) external onlyMoonSquares {
+    function changeReceiverAdress(address _newReceiver) external onlyhandler {
        _changeReceiver(_newReceiver);
     }
 

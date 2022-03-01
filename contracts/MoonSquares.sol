@@ -6,7 +6,7 @@ pragma abicoder v2;
 import "../interfaces/TransferHelper.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/KeeperCompatibleInterface.sol";
-//import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 import "../interfaces/DataTypes.sol";
@@ -72,9 +72,6 @@ contract MoonSquares is KeeperCompatibleInterface, Ownable {
 
     mapping (uint256 => mapping (address => uint256[])) public roundAddressBetIds;
 
-
-    mapping (address => uint256) totalAmountPlayed;//shows how much every player has placed
-
     event Predicted(uint256 indexed _betId, address sender, uint256 _start);
     
 
@@ -86,6 +83,8 @@ contract MoonSquares is KeeperCompatibleInterface, Ownable {
         assetName = _asset;
         priceFeed = feed_;
         handler = handler_;
+        coinRound = 1;
+        roundInfo[0].winningTime = block.timestamp;
     }
 
     function _updateStorage(
@@ -104,16 +103,12 @@ contract MoonSquares is KeeperCompatibleInterface, Ownable {
     } 
     //predicts an asset
 
-
-    function getAddressRoundbets(uint256 round_, address sender_) public view returns(uint256) {
-        return roundAddressBetIds[round_][sender_].length;
-    }
    function predictAsset(
         uint256 _start
     ) external
     {   
         uint amount = 10 ether;
-        //uint duration = 300 seconds;
+        require(roundInfo[coinRound].winningTime == 0);
         require(_start > block.timestamp);
         require(IERC20(Dai).allowance(msg.sender, address(this)) >= amount);
         IERC20(Dai).transferFrom(msg.sender, address(this), amount);
@@ -137,19 +132,6 @@ contract MoonSquares is KeeperCompatibleInterface, Ownable {
             address(handler),
             0
         );
-    }
-
-    //gets the price of the asset denoted by market
-    function getPrice() public view returns(int256){
-        (,int256 answer,,,) = priceFeed.latestRoundData();
-        return int256(answer/100000000);
-    }
-
-    //gets the current time
-    function getTime() public view returns(uint256){
-        //Matic network
-        (,,,uint256 answer,) = priceFeed.latestRoundData();
-         return uint256(answer);
     }
 
     //it 
@@ -182,10 +164,31 @@ contract MoonSquares is KeeperCompatibleInterface, Ownable {
 
     }
 
+    function setTime() private {
+        roundInfo[coinRound].winningTime = getTime();
+        if (roundInfo[coinRound].totalBets != 0){
+            setWinningBets();
+            withdrawRoundFundsFromIba();
+        }
+        coinRound++;
+    }
+
+    function checkUpkeep(
+        bytes calldata /*checkData*/
+    ) external view override returns (
+        bool upkeepNeeded, bytes memory performData
+    ) {
+        upkeepNeeded = (getPrice() == roundInfo[coinRound].moonPrice);
+    }
+
+    function performUpkeep(bytes calldata performData) external override {
+        setTime();
+    }
+
      function takePrize(
          uint round,
          uint256 betId,
-         bytes8 charity
+         string memory charity
     ) external {
         require(roundInfo[round].numberOfWinners != 0);
         require(
@@ -202,37 +205,17 @@ contract MoonSquares is KeeperCompatibleInterface, Ownable {
         roundIdBetInfo[round][betId].paid = true;
         handler.voteForCharity(charity);
     }
-
-    function setTime() public {
-        roundInfo[coinRound].winningTime = getTime();
-        setWinningBets();
-        withdrawRoundFundsFromIba();
-    }
-
-    function checkUpkeep(
-        bytes calldata /*checkData*/
-    ) external view override returns (
-        bool upkeepNeeded, bytes memory performData
-    ) {
-        upkeepNeeded = (getPrice() == roundInfo[coinRound].moonPrice);
-    }
-
-    function performUpkeep(bytes calldata performData) external override {
-        setTime();
-    }
-
     //withdraws the total Amount after the moonpice gets hit
     function withdrawRoundFundsFromIba() private {
         require(roundInfo[coinRound].numberOfWinners != 0);
         handler.withdrawRoundFunds(roundInfo[coinRound].winnings);
-            
-
-        //Withdraws Funds from the predictions
+        //Withdraws Funds from aave for the prediction
     }
 
     function setMoonPrice(
         int price
     ) external onlyOwner {
+        require(roundInfo[coinRound -1].winningTime != 0);
         roundInfo[coinRound] = RoundInfo(
             price,
             0,
@@ -244,6 +227,23 @@ contract MoonSquares is KeeperCompatibleInterface, Ownable {
             0
         );
 
+    }
+
+    //gets the price of the asset denoted by market
+    function getPrice() public view returns(int256){
+        (,int256 answer,,,) = priceFeed.latestRoundData();
+        return int256(answer/100000000);
+    }
+
+    //gets the current time
+    function getTime() public view returns(uint256){
+        //Matic network
+        (,,,uint256 answer,) = priceFeed.latestRoundData();
+         return uint256(answer);
+    }
+
+    function getRoundbets(uint256 round_, address sender_) public view returns(uint256) {
+        return roundAddressBetIds[round_][sender_].length;
     }
 
 }

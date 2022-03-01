@@ -65,17 +65,17 @@ def deploy_contracts(asset, salt):
         btc_aggregator,
         money_handler
     )
-    #tx = DailyRoketFactory[-1].deployContract(
-    #    bytecode1,
-    #    bytecode2,
-    #    salt,
-    #    "BTC",
-    #    {"from": account}
-    #)
-    #tx.wait(1)
-    #address1 = DailyRoketFactory[-1].getAddress(bytecode1, salt) 
-    #address2 = history[-1].events[0]["dailyRoket"]
-    #print(f' address1 eaquals address2: {address1 == address2}')
+    tx = DailyRoketFactory[-1].deployContract(
+        bytecode1,
+        bytecode2,
+        salt,
+        "BTC",
+        {"from": account}
+    )
+    tx.wait(1)
+    address1 = DailyRoketFactory[-1].getAddress(bytecode1, salt) 
+    address2 = history[-1].events[0]["dailyRoket"]
+    print(f' address1 eaquals address2: {address1 == address2}')
 
 def daily_rokecket():
     address = DailyRoketFactory[-1].getDRAddress("BTC")

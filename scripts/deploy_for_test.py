@@ -78,7 +78,7 @@ def moonsquare(asset, agg):
         47774,
         {"from": account}
     )
-
+#
 
     print("depploying Daily Rokect contract")
     dr = (
@@ -92,14 +92,14 @@ def moonsquare(asset, agg):
         if len(DailyRocket) <= 0
         else DailyRocket[-1]
     )
-    handler.addContract(dr.address, {"from": account})
+    #handler.addContract(dr.address, {"from": account})
     print("tranfering link to DR contract...")
     link.transfer(
         dr.address,
         convert.to_uint("1000000000000000000"),
         {"from": account}
     )
-    #print(f"time is {dr.getTime()}")
+    print(f"time is {dr.getTime()}")
     #governance_token = (
     #    BMSGToken.deploy(
     #        fDaix,
@@ -203,12 +203,12 @@ def moonsquare(asset, agg):
             dai.approve(dr.address, "10 ether", {"from":account1})
             dr.predictClosePrice(prediction, {"from": account1})
             i+=1
-    i = 1
-    while i <= 3:
-        moon_transactions(i)
-        daily_transactions(i)
-        i+=1
-    
+    #i = 1
+    #while i <= 3:
+    #    moon_transactions(i)
+    #    daily_transactions(i)
+    #    i+=1
+    #
         #tx = box.transferOwnership(GovernanceTimeLock[-1], {"from": account})
     #tx.wait(1)
 
