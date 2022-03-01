@@ -64,20 +64,20 @@ def moonsquare(asset, agg):
         else MoonSquares[-1]
     )
     boxAddress = box.address
-    handler.addContract(boxAddress, {"from": account})
+    #handler.addContract(boxAddress, {"from": account})
     print("tranfering link to moonSquare contract...")
-    link.transfer(
-        boxAddress,
-        convert.to_uint("1 ether"),
-        {"from": account}
-    )
+    #link.transfer(
+    #    boxAddress,
+    #    convert.to_uint("1 ether"),
+    #    {"from": account}
+    #)
     print("checking chainlnk aggregator")
     print(box.getTime())
     print("setting moon Price...")
-    box.setMoonPrice(
-        47774,
-        {"from": account}
-    )
+    #box.setMoonPrice(
+    #    47774,
+    #    {"from": account}
+    #)
 #
 
     print("depploying Daily Rokect contract")
@@ -92,13 +92,13 @@ def moonsquare(asset, agg):
         if len(DailyRocket) <= 0
         else DailyRocket[-1]
     )
-    #handler.addContract(dr.address, {"from": account})
+    handler.addContract(dr.address, {"from": account})
     print("tranfering link to DR contract...")
-    link.transfer(
-        dr.address,
-        convert.to_uint("1000000000000000000"),
-        {"from": account}
-    )
+    #link.transfer(
+    #    dr.address,
+    #    convert.to_uint("1000000000000000000"),
+    #    {"from": account}
+    #)
     print(f"time is {dr.getTime()}")
     #governance_token = (
     #    BMSGToken.deploy(
@@ -203,14 +203,14 @@ def moonsquare(asset, agg):
             dai.approve(dr.address, "10 ether", {"from":account1})
             dr.predictClosePrice(prediction, {"from": account1})
             i+=1
-    #i = 1
-    #while i <= 3:
-    #    moon_transactions(i)
-    #    daily_transactions(i)
-    #    i+=1
-    #
-        #tx = box.transferOwnership(GovernanceTimeLock[-1], {"from": account})
-    #tx.wait(1)
+    i = 1
+    while i <= 3:
+        moon_transactions(i)
+        daily_transactions(i)
+        i+=1
+    
+       #tx = box.transferOwnership(GovernanceTimeLock[-1], {"from": account})
+    tx.wait(1)
 
 
 

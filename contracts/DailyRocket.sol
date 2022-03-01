@@ -41,7 +41,7 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
 
     mapping(uint256 => DayInfo) public dayAssetInfo;
 
-    mapping(uint256 => uint256) dayCloseTime; //Closing Time for every asset
+    mapping(uint256 => uint256) public dayCloseTime; //Closing Time for every asset
     
     address Dai = 0xFf795577d9AC8bD7D90Ee22b6C1703490b6512FD;
 
@@ -72,10 +72,10 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
         assetName = _asset;
         priceFeed = agg;
         handler = _handler;
-        contractStartTime = block.timestamp;
+        contractStartTime = getTime();
         dayCount = 1;
-        dayCloseTime[0] = block.timestamp;//adds a day to the start time. to change to an input later.
-    }//instantiate the token addresses upon deployment
+        dayCloseTime[1] = getTime() + 1 days;
+    }
 
 
     function setNewClosingPrice() internal {
@@ -91,7 +91,7 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
         int _prediction
     ) external
     {   
-        require(getTime() <= dayCloseTime[dayCount -1] + 20 hours);//@dev: After this time, one cannot predict    
+        require(getTime() <= dayCloseTime[dayCount] + 20 hours);//@dev: After this time, one cannot predict    
         uint256 amount = 10000000000000000000;//the amount we set for the daily close
         uint256 betId = dayAssetInfo[dayCount].totalBets;
         require(IERC20(Dai).allowance(msg.sender, address(this)) >= uint(amount));
@@ -128,7 +128,6 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
                 dayAssetInfo[dayCount].noOfWinners +=1;
             }
         }
-        dayCount+=1;
     }
 
 
@@ -222,19 +221,20 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
         bool upkeepNeeded, bytes memory performData
     )
     {
-        upkeepNeeded = (dayCloseTime[(dayCount - 1)] + 24 hours) >= getTime();
+        upkeepNeeded = getDay();
         
     }
-    
+
 
     function performUpkeep(bytes calldata performData) external override {
-        if ((dayCloseTime[(dayCount - 1)] + 86400 seconds) >= getTime()) {
-            dayCloseTime[dayCount] = block.timestamp;
+        if (getTime() >= dayCloseTime[dayCount]) {
+            dayCloseTime[dayCount + 1] = getTime() + 1 days;
             setNewClosingPrice();
             if (dayAssetInfo[dayCount].totalBets != 0) {
                 selectWinner();
                 _getVictor();
             }
+            dayCount+=1;
         }
     }
 
@@ -249,5 +249,9 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
             0
         );    
         emit SentToIBA(uint(amount), dayCount);
+    }
+
+    function getDay() public view returns(bool) {
+        return getTime() >= dayCloseTime[dayCount];
     }
 }
