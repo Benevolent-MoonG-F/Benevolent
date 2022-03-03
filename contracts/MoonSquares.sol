@@ -30,9 +30,7 @@ contract MoonSquares is KeeperCompatibleInterface, Ownable {
 
     //IUniswapV2Router02 public sushiRouter = IUniswapV2Router02(0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506);
 
-    ILendingPoolAddressesProvider private provider = ILendingPoolAddressesProvider(
-        address(0x88757f2f99175387aB4C6a4b3067c77A695b0349)
-    ); 
+    ILendingPoolAddressesProvider private provider;
     ILendingPool private lendingPool = ILendingPool(provider.getLendingPool());
 
     //ISwapRouter public immutable swapRouter;
@@ -40,10 +38,8 @@ contract MoonSquares is KeeperCompatibleInterface, Ownable {
     IHandler public handler;
     AggregatorV3Interface private priceFeed;
 
-    address private Dai = 0xFf795577d9AC8bD7D90Ee22b6C1703490b6512FD;
-    address private Daix = 0x43F54B13A0b17F67E61C9f0e41C3348B3a2BDa09;
+    address private  Dai;
     
-//
     mapping(uint256 => RoundInfo) public roundInfo;
     struct RoundInfo {
         int256 moonPrice;
@@ -78,11 +74,15 @@ contract MoonSquares is KeeperCompatibleInterface, Ownable {
     constructor(
         string memory _asset,
         AggregatorV3Interface feed_,
-        IHandler handler_
+        IHandler handler_,
+        address Dai_,
+        ILendingPoolAddressesProvider pvd_
     ) {
         assetName = _asset;
         priceFeed = feed_;
         handler = handler_;
+        Dai = Dai_;
+        provider = pvd_;
         coinRound = 1;
         roundInfo[0].winningTime = block.timestamp;
     }

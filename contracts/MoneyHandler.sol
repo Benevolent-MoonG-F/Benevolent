@@ -40,7 +40,7 @@ contract MoneyHandler is Ownable, KeeperCompatibleInterface {
 
 
     ILendingPoolAddressesProvider private provider = ILendingPoolAddressesProvider(
-        address(0x88757f2f99175387aB4C6a4b3067c77A695b0349)
+        address(0xd05e3E715d945B59290df0ae8eF85c1BdB684744)
     ); 
     ILendingPool private lendingPool = ILendingPool(provider.getLendingPool());
     address private Dai;
@@ -48,7 +48,7 @@ contract MoneyHandler is Ownable, KeeperCompatibleInterface {
     IRedirect private flowDistributer;
     IGovernanceToken private governanceToken;
 
-    address private _aaveToken = 0xdCf0aF9e59C002FA3AA091a46196b37530FD48a8;
+    address private _aaveToken = 0x639cB7b21ee2161DF9c882483C9D55c90c20Ca3e;
     
     address[] public contracts;
 

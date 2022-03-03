@@ -16,9 +16,7 @@ import "../interfaces/IHandler.sol";
 
 contract DailyRocket is Ownable, KeeperCompatibleInterface {
 
-    ILendingPoolAddressesProvider private provider = ILendingPoolAddressesProvider(
-        address(0x88757f2f99175387aB4C6a4b3067c77A695b0349)
-    );  
+    ILendingPoolAddressesProvider private provider;  
     ILendingPool private lendingPool = ILendingPool(provider.getLendingPool());
 
     IHandler private handler;
@@ -43,7 +41,7 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
 
     mapping(uint256 => uint256) public dayCloseTime; //Closing Time for every asset
     
-    address Dai = 0xFf795577d9AC8bD7D90Ee22b6C1703490b6512FD;
+    address private Dai;
 
     uint256 public contractStartTime; //The contract should start at 0000.00 hours
 
@@ -66,12 +64,16 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
     constructor(
         string memory _asset,
         AggregatorV3Interface agg,
-        IHandler _handler
+        IHandler _handler,
+        address Dai_,
+        ILendingPoolAddressesProvider pvd_
         )
     {
         assetName = _asset;
         priceFeed = agg;
         handler = _handler;
+        Dai = Dai_;
+        provider = pvd_;
         contractStartTime = getTime();
         dayCount = 1;
         dayCloseTime[1] = getTime() + 1 days;

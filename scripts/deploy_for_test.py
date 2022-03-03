@@ -13,19 +13,35 @@ from brownie import (
     network,
     convert,
     accounts,
-    chain
+    chain,
+    network
 )
 from scripts.helpful_scripts import get_account
 from web3 import Web3, constants
 
+network.max_fee("100 gwei")
+network.priority_fee("1 gwei")
+account = get_account()
 
-fDaix = convert.to_address("0x43F54B13A0b17F67E61C9f0e41C3348B3a2BDa09")
-host = convert.to_address("0xF0d7d1D47109bA426B9D8A3Cde1941327af1eea3")
-ida = convert.to_address("0x556ba0b3296027Dd7BCEb603aE53dEc3Ac283d2b")
-cfa = convert.to_address("0xECa8056809e7e8db04A8fF6e4E82cD889a46FE2F")
+host = convert.to_address("0xEB796bdb90fFA0f28255275e16936D25d3418603")
+cfa = convert.to_address("0x49e565Ed1bdc17F3d220f72DF0857C26FA83F873")
+ida = convert.to_address("0x804348D4960a61f2d5F9ce9103027A3E849E09b8")
+DAI = convert.to_address("0x001B3B4d0F3714Ca98ba10F6042DaEbF0B1B7b6F")
+fDaix = convert.to_address("0x06577b0B09e69148A45b866a0dE6643b6caC40Af")
+btc_aggregator = convert.to_address("0x007A22900a3B98143368Bd5906f8E17e9867581b")
+lending_pool = convert.to_address("0xd05e3E715d945B59290df0ae8eF85c1BdB684744")
+aaveToken = convert.to_address("0x639cB7b21ee2161DF9c882483C9D55c90c20Ca3e")
+
+
+fDaixk = convert.to_address("0x43F54B13A0b17F67E61C9f0e41C3348B3a2BDa09")
+host_k = convert.to_address("0xF0d7d1D47109bA426B9D8A3Cde1941327af1eea3")
+ida_k = convert.to_address("0x556ba0b3296027Dd7BCEb603aE53dEc3Ac283d2b")
+cfa_k = convert.to_address("0xECa8056809e7e8db04A8fF6e4E82cD889a46FE2F")
 #swapRouter =convert.to_address("0xE592427A0AEce92De3Edee1F18E0157C05861564")
-DAI = convert.to_address("0xFf795577d9AC8bD7D90Ee22b6C1703490b6512FD")
-btc_aggregator = convert.to_address("0x6135b13325bfC4B00278B4abC5e20bbce2D6580e")
+DAI_k = convert.to_address("0xFf795577d9AC8bD7D90Ee22b6C1703490b6512FD")
+btc_aggregator_k = convert.to_address("0x6135b13325bfC4B00278B4abC5e20bbce2D6580e")
+lending_pool_k = convert.to_address("0x88757f2f99175387aB4C6a4b3067c77A695b0349")
+_aaveToken_k = convert.to_address("0xdCf0aF9e59C002FA3AA091a46196b37530FD48a8")
 MIN_DELAY = 1
 
 def main():
@@ -33,11 +49,10 @@ def main():
 
 
 
-
 def moonsquare(asset, agg):
     dai = interface.IERC20(DAI)
     print("loading dai and link Interfaces...")
-    link = interface.LinkTokenInterface("0xa36085F69e2889c224210F603D836748e7dC0088")
+    link = interface.LinkTokenInterface("0x326C977E6efc84E512bB9C30f76E30c160eD06FB")# 0xa36085F69e2889c224210F603D836748e7dC0088
     account = get_account()
     print("deploying moonsquare contract..")
     handler = (
@@ -57,6 +72,8 @@ def moonsquare(asset, agg):
             asset,
             agg,
             hander_address,
+            DAI,
+            lending_pool,
             {"from": account},
             publish_source=True
         )
@@ -66,18 +83,18 @@ def moonsquare(asset, agg):
     boxAddress = box.address
     #handler.addContract(boxAddress, {"from": account})
     print("tranfering link to moonSquare contract...")
-    #link.transfer(
-    #    boxAddress,
-    #    convert.to_uint("1 ether"),
-    #    {"from": account}
-    #)
+    link.transfer(
+        boxAddress,
+        convert.to_uint("1 ether"),
+        {"from": account}
+    )
     print("checking chainlnk aggregator")
     print(box.getTime())
     print("setting moon Price...")
-    #box.setMoonPrice(
-    #    47774,
-    #    {"from": account}
-    #)
+    box.setMoonPrice(
+        47774,
+        {"from": account}
+    )
 #
 
     print("depploying Daily Rokect contract")
@@ -86,6 +103,8 @@ def moonsquare(asset, agg):
             asset,
             agg,
             hander_address,
+            DAI,
+            lending_pool,
             {"from": account},
             publish_source=True
         )
@@ -94,11 +113,11 @@ def moonsquare(asset, agg):
     )
     handler.addContract(dr.address, {"from": account})
     print("tranfering link to DR contract...")
-    #link.transfer(
-    #    dr.address,
-    #    convert.to_uint("1000000000000000000"),
-    #    {"from": account}
-    #)
+    link.transfer(
+        dr.address,
+        convert.to_uint("1000000000000000000"),
+        {"from": account}
+    )
     print(f"time is {dr.getTime()}")
     #governance_token = (
     #    BMSGToken.deploy(
@@ -203,14 +222,14 @@ def moonsquare(asset, agg):
             dai.approve(dr.address, "10 ether", {"from":account1})
             dr.predictClosePrice(prediction, {"from": account1})
             i+=1
-    i = 1
-    while i <= 3:
-        moon_transactions(i)
-        daily_transactions(i)
-        i+=1
+    #i = 1
+    #while i <= 3:
+    #    moon_transactions(i)
+    #    daily_transactions(i)
+    #    i+=1
     
        #tx = box.transferOwnership(GovernanceTimeLock[-1], {"from": account})
-    tx.wait(1)
+    #tx.wait(1)
 
 
 
