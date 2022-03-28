@@ -30,7 +30,9 @@ contract MoonSquares is KeeperCompatibleInterface, Ownable {
 
     //IUniswapV2Router02 public sushiRouter = IUniswapV2Router02(0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506);
 
-    ILendingPoolAddressesProvider private provider;
+    ILendingPoolAddressesProvider private provider = ILendingPoolAddressesProvider(
+        address(0x178113104fEcbcD7fF8669a0150721e231F0FD4B)
+    ); 
     ILendingPool private lendingPool = ILendingPool(provider.getLendingPool());
 
     //ISwapRouter public immutable swapRouter;
@@ -38,7 +40,7 @@ contract MoonSquares is KeeperCompatibleInterface, Ownable {
     IHandler public handler;
     AggregatorV3Interface private priceFeed;
 
-    address private  Dai;
+    address private Dai = 0x001B3B4d0F3714Ca98ba10F6042DaEbF0B1B7b6F;
     
     mapping(uint256 => RoundInfo) public roundInfo;
     struct RoundInfo {
@@ -74,15 +76,11 @@ contract MoonSquares is KeeperCompatibleInterface, Ownable {
     constructor(
         string memory _asset,
         AggregatorV3Interface feed_,
-        IHandler handler_,
-        address Dai_,
-        ILendingPoolAddressesProvider pvd_
+        IHandler handler_
     ) {
         assetName = _asset;
         priceFeed = feed_;
         handler = handler_;
-        Dai = Dai_;
-        provider = pvd_;
         coinRound = 1;
         roundInfo[0].winningTime = block.timestamp;
     }
@@ -147,11 +145,14 @@ contract MoonSquares is KeeperCompatibleInterface, Ownable {
         }
     }
     function setWinningBets() internal {
-
-        for (uint256 p =0; p <= roundInfo[coinRound].totalBets; p++) {
+        uint256 total = roundInfo[coinRound].totalBets;
+        for (uint256 p =0; p <= total;) {
             if (_checkIndexes(p) == true){
                 roundIdBetInfo[coinRound][p].isWinner = true;
                 roundInfo[coinRound].numberOfWinners += 1;
+            }
+            unchecked {
+                p++;
             }
         }
     }
@@ -238,8 +239,8 @@ contract MoonSquares is KeeperCompatibleInterface, Ownable {
     //gets the current time
     function getTime() public view returns(uint256){
         //Matic network
-        (,,,uint256 answer,) = priceFeed.latestRoundData();
-         return uint256(answer);
+        //(,,,uint256 answer,) = priceFeed.latestRoundData();
+         return block.timestamp;
     }
 
     function getRoundbets(uint256 round_, address sender_) public view returns(uint256) {

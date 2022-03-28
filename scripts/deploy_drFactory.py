@@ -1,7 +1,7 @@
 from brownie import (
-    DailyRoketFactory,
-    DailyRocketContract,
-    MoonSquaresContract,
+    BenevolentMoonFactory,
+    DailyRocket,
+    MoonSquares,
     accounts,
     config,
     history,
@@ -33,9 +33,9 @@ link = interface.LinkTokenInterface("0xa36085F69e2889c224210F603D836748e7dC0088"
 dai = interface.IERC20(DAI)
 def deploy_fatory():
     factory_contract = (
-        DailyRoketFactory.deploy({"from": account}, publish_source=True)
-    if len(DailyRoketFactory) <=0
-    else DailyRoketFactory[-1]
+        BenevolentMoonFactory.deploy({"from": account}, publish_source=True)
+    if len(BenevolentMoonFactory) <=0
+    else BenevolentMoonFactory[-1]
     )
 
 def deploy_handler():
@@ -51,35 +51,40 @@ def deploy_handler():
         else MoneyHandler[-1]
     )
 
-def deploy_contracts(asset, salt):
-    bytecode1 = DailyRoketFactory[-1].getBytecode(
+def deploy_Daily_contracts(asset, salt):
+    bytecode1 = DailyRocket[-1].getBytecode(
         1,
         convert.to_string(asset),
         btc_aggregator,
         money_handler
         
     )
-    bytecode2 = DailyRoketFactory[-1].getBytecode(
+    tx = BenevolentMoonFactory[-1].deployDailyRoket(
+        bytecode1,
+        salt,
+        asset,
+        {"from": account}
+    )
+    tx.wait(1)
+
+def deploy_Moon_contract(asset, salt):
+    bytecode = MoonSquares[-1].getBytecode(
         2,
         convert.to_string(asset),
         btc_aggregator,
         money_handler
     )
-    tx = DailyRoketFactory[-1].deployContract(
-        bytecode1,
-        bytecode2,
+    tx = BenevolentMoonFactory[-1].deployMoonSquares(
+        bytecode,
         salt,
-        "BTC",
+        asset,
         {"from": account}
     )
     tx.wait(1)
-    address1 = DailyRoketFactory[-1].getAddress(bytecode1, salt) 
-    address2 = history[-1].events[0]["dailyRoket"]
-    print(f' address1 eaquals address2: {address1 == address2}')
 
 def daily_rokecket():
-    address = DailyRoketFactory[-1].getDRAddress("BTC")
-    drBTC = DailyRocketContract.at(address)
+    address = BenevolentMoonFactory[-1].getDRAddress("BTC")
+    drBTC = DailyRocket.at(address)
 
     link.transfer(
         drBTC.address,
@@ -90,8 +95,8 @@ def daily_rokecket():
     print(drBTC.getTime())
 
 def moonsquares():
-    address = DailyRoketFactory[-1].getMSAddress("BTC")
-    msBTC = MoonSquaresContract.at(address)
+    address = BenevolentMoonFactory[-1].getMSAddress("BTC")
+    msBTC = MoonSquares.at(address)
 
     link.transfer(
         msBTC.address,
@@ -103,8 +108,8 @@ def moonsquares():
 
 def daily_transactions(index):
 
-    address = DailyRoketFactory[-1].getDRAddress("BTC")
-    drBTC = DailyRocketContract.at(address)
+    address = DailyRocket[-1].getDRAddress("BTC")
+    drBTC = DailyRocket.at(address)
     if index ==1:
         account1 = accounts.add(config["wallets"]["from_test1"])
     if index ==2:
@@ -122,8 +127,8 @@ def daily_transactions(index):
 
 def moon_transactions(index):
 
-    address = DailyRoketFactory[-1].getMSAddress("BTC")
-    msBTC = MoonSquaresContract.at(address)
+    address = DailyRocket[-1].getMSAddress("BTC")
+    msBTC = MoonSquares.at(address)
     if index ==1:
         account1 = accounts.add(config["wallets"]["from_test1"])
     if index ==2:
@@ -147,11 +152,12 @@ def send_transactions():
 
 
 def main():
-    #deploy_handler()
-    #deploy_fatory()
-    #deploy_contracts("BTC", 132)
-    #daily_rokecket()
-    #moonsquares()
+    deploy_handler()
+    deploy_fatory()
+    deploy_Daily_contracts("BTC", 132)
+    deploy_Moon_contract("BTC", 256)
+    daily_rokecket()
+    moonsquares()
     send_transactions()
     
     

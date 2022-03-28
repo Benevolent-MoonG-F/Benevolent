@@ -116,7 +116,8 @@ contract BMSGToken is ERC20Votes, SuperAppBase, Ownable {
     function distribute(uint256 cashAmount) external onlyOwner {
         (uint256 actualCashAmount,) = _ida.calculateDistribution(
             _cashToken,
-            address(this), INDEX_ID,
+            address(this),
+            INDEX_ID,
             cashAmount);
 
         _cashToken.transferFrom(owner(), address(this), actualCashAmount);

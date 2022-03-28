@@ -29,7 +29,7 @@ ida = convert.to_address("0x804348D4960a61f2d5F9ce9103027A3E849E09b8")
 DAI = convert.to_address("0x001B3B4d0F3714Ca98ba10F6042DaEbF0B1B7b6F")
 fDaix = convert.to_address("0x06577b0B09e69148A45b866a0dE6643b6caC40Af")
 btc_aggregator = convert.to_address("0x007A22900a3B98143368Bd5906f8E17e9867581b")
-lending_pool = convert.to_address("0xd05e3E715d945B59290df0ae8eF85c1BdB684744")
+lending_pool = convert.to_address("0x178113104fEcbcD7fF8669a0150721e231F0FD4B")
 aaveToken = convert.to_address("0x639cB7b21ee2161DF9c882483C9D55c90c20Ca3e")
 
 
@@ -72,27 +72,25 @@ def moonsquare(asset, agg):
             asset,
             agg,
             hander_address,
-            DAI,
-            lending_pool,
             {"from": account},
-            publish_source=True
+            #publish_source=True
         )
         if len(MoonSquares) <= 0
         else MoonSquares[-1]
     )
     boxAddress = box.address
-    #handler.addContract(boxAddress, {"from": account})
+    handler.addContract(boxAddress, {"from": account})
     print("tranfering link to moonSquare contract...")
-    link.transfer(
-        boxAddress,
-        convert.to_uint("1 ether"),
-        {"from": account}
-    )
+    #link.transfer(
+    #    boxAddress,
+    #    convert.to_uint("1 ether"),
+    #    {"from": account}
+    #)
     print("checking chainlnk aggregator")
     print(box.getTime())
     print("setting moon Price...")
     box.setMoonPrice(
-        47774,
+        50000,
         {"from": account}
     )
 #
@@ -103,21 +101,19 @@ def moonsquare(asset, agg):
             asset,
             agg,
             hander_address,
-            DAI,
-            lending_pool,
             {"from": account},
-            publish_source=True
+            #publish_source=True
         )
         if len(DailyRocket) <= 0
         else DailyRocket[-1]
     )
     handler.addContract(dr.address, {"from": account})
     print("tranfering link to DR contract...")
-    link.transfer(
-        dr.address,
-        convert.to_uint("1000000000000000000"),
-        {"from": account}
-    )
+    #link.transfer(
+    #    dr.address,
+    #    convert.to_uint("1000000000000000000"),
+    #    {"from": account}
+    #)
     print(f"time is {dr.getTime()}")
     #governance_token = (
     #    BMSGToken.deploy(
@@ -198,35 +194,22 @@ def moonsquare(asset, agg):
             account1 = accounts.add(config["wallets"]["from_test2"])
         elif index ==3:
             account1 = accounts.add(config["wallets"]["from_test3"])
+        dai.transfer(account1, 1000000000000000000000, {"from": account})
         i = 1
         while i <= 4:
             time = chain.time()
             prediction = randrange(time, (time + 84000))
             dai.approve(boxAddress, 10000000000000000000, {"from":account1})
             box.predictAsset(prediction, {"from": account1})
-            i+=1
-
-
-
-    def daily_transactions(index):
-        if index ==1:
-            account1 = accounts.add(config["wallets"]["from_test1"])
-        if index ==2:
-            account1 = accounts.add(config["wallets"]["from_test2"])
-        elif index ==3:
-            account1 = accounts.add(config["wallets"]["from_test3"])
-        i = 1
-        while i <= 4:
             price = dr.getPrice()
             prediction = randrange(price, ((price + 9000) or (price - 9000)))
             dai.approve(dr.address, "10 ether", {"from":account1})
             dr.predictClosePrice(prediction, {"from": account1})
             i+=1
-    #i = 1
-    #while i <= 3:
-    #    moon_transactions(i)
-    #    daily_transactions(i)
-    #    i+=1
+    i = 1
+    while i <= 3:
+        moon_transactions(i)
+        i+=1
     
        #tx = box.transferOwnership(GovernanceTimeLock[-1], {"from": account})
     #tx.wait(1)

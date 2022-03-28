@@ -16,7 +16,9 @@ import "../interfaces/IHandler.sol";
 
 contract DailyRocket is Ownable, KeeperCompatibleInterface {
 
-    ILendingPoolAddressesProvider private provider;  
+    ILendingPoolAddressesProvider private provider = ILendingPoolAddressesProvider(
+        address(0x178113104fEcbcD7fF8669a0150721e231F0FD4B)
+    );  
     ILendingPool private lendingPool = ILendingPool(provider.getLendingPool());
 
     IHandler private handler;
@@ -41,7 +43,7 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
 
     mapping(uint256 => uint256) public dayCloseTime; //Closing Time for every asset
     
-    address private Dai;
+    address Dai = 0x001B3B4d0F3714Ca98ba10F6042DaEbF0B1B7b6F;
 
     uint256 public contractStartTime; //The contract should start at 0000.00 hours
 
@@ -64,19 +66,15 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
     constructor(
         string memory _asset,
         AggregatorV3Interface agg,
-        IHandler _handler,
-        address Dai_,
-        ILendingPoolAddressesProvider pvd_
+        IHandler _handler
         )
     {
         assetName = _asset;
         priceFeed = agg;
         handler = _handler;
-        Dai = Dai_;
-        provider = pvd_;
         contractStartTime = getTime();
-        dayCount = 1;
-        dayCloseTime[1] = getTime() + 1 days;
+        dayCount = 0;
+        dayCloseTime[0] = 1646611200;
     }
 
 
@@ -134,8 +132,9 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
 
 
     function selectWinner() private {
+        uint256 totalBets = dayAssetInfo[dayCount].totalBets;
         int256 difference = dayAssetInfo[dayCount].closePrice;
-        for (uint8 p = 0; p < dayAssetInfo[dayCount].totalBets; p++) {
+        for (uint256 p = 0; p < totalBets;) {
             if 
             (
                 getDifference(
@@ -148,12 +147,16 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
                     dayBetIdInfo[dayCount][p].prediction
                 );
             }
+            unchecked{p++;}
         }
         dayAssetInfo[dayCount].leastDifference = difference;
     }
 
 
-    function getDifference(int256 closePrice, int256 playerPrice) private pure returns(int256) {
+    function getDifference(
+        int256 closePrice,
+        int256 playerPrice
+    ) private pure returns(int256) {
         if(closePrice > playerPrice) {
             return closePrice - playerPrice;
         } else {
@@ -175,8 +178,8 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
 
 
     function getTime() public view returns(uint){
-        (,,,uint answer,) = priceFeed.latestRoundData();
-         return uint(answer);
+        //(,,,uint answer,) = priceFeed.latestRoundData();
+         return block.timestamp;
     }
 
 
@@ -230,13 +233,13 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
 
     function performUpkeep(bytes calldata performData) external override {
         if (getTime() >= dayCloseTime[dayCount]) {
-            dayCloseTime[dayCount + 1] = getTime() + 1 days;
             setNewClosingPrice();
-            if (dayAssetInfo[dayCount].totalBets != 0) {
+            if (dayAssetInfo[dayCount].totalBets > 0) {
                 selectWinner();
                 _getVictor();
             }
             dayCount+=1;
+            dayCloseTime[dayCount] = getTime() + 1 days;
         }
     }
 
