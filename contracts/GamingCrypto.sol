@@ -4,9 +4,10 @@ pragma solidity ^0.8.10;
 
 import {DailyRocket} from "./DailyRocket.sol";
 import {MoonSquares} from "./MoonSquares.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
 
-contract BenevolentMoonFactory {
+contract BenevolentMoonFactory is Ownable {
 
     mapping(string => address) private _assetDRAddress;
     mapping(string => address) private _assetMSAddress;
@@ -28,8 +29,9 @@ contract BenevolentMoonFactory {
         uint _contract,
         string memory _asset,
         address agg,
-        address _handler
-    ) private pure returns (bytes memory) {
+        address _handler,
+        uint256 midnight_
+    ) public pure returns (bytes memory) {
         require(_contract == 1 || _contract == 2);//@dev: wrong contract selection
         if (_contract == 1) {
             bytes memory bytecode = type(MoonSquares).creationCode;
@@ -39,7 +41,8 @@ contract BenevolentMoonFactory {
                 abi.encode(
                     _asset,
                     agg,
-                    _handler
+                    _handler,
+                    midnight_
                 )
             );
 
@@ -62,7 +65,8 @@ contract BenevolentMoonFactory {
         bytes memory drbytecode,
         uint _salt,
         string memory name_
-    ) public payable {
+    ) public payable onlyOwner {
+        require(_assetDRAddress[name_] == address(0));
         address addr;
         assembly {
             addr := create2(
@@ -88,7 +92,8 @@ contract BenevolentMoonFactory {
         bytes memory msbytecode,
         uint _salt,
         string memory name_
-    ) public payable {
+    ) public payable onlyOwner {
+        require(_assetMSAddress[name_] == address(0));
         address addr1;
         assembly {
             addr1 := create2(

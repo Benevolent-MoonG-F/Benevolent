@@ -1,7 +1,11 @@
 from brownie import (
     BenevolentMoonFactory,
+    GovernanceTimeLock,
     DailyRocket,
     MoonSquares,
+    BMSGToken,
+    MyGovernor,
+    RedirectAll,
     accounts,
     config,
     history,
@@ -13,27 +17,31 @@ from brownie import (
 )
 from random import randrange
 from scripts.helpful_scripts import get_account
+from web3 import Web3, constants
+
 
 network.priority_fee("1 gwei")
 network.max_fee("50 gwei")
 
-fDaix = convert.to_address("0x43F54B13A0b17F67E61C9f0e41C3348B3a2BDa09")
-host = convert.to_address("0xF0d7d1D47109bA426B9D8A3Cde1941327af1eea3")
-ida = convert.to_address("0x556ba0b3296027Dd7BCEb603aE53dEc3Ac283d2b")
-cfa = convert.to_address("0xECa8056809e7e8db04A8fF6e4E82cD889a46FE2F")
-#swapRouter =convert.to_address("0xE592427A0AEce92De3Edee1F18E0157C05861564")
-DAI = convert.to_address("0xFf795577d9AC8bD7D90Ee22b6C1703490b6512FD")
-money_handler = convert.to_address("0x6840f713D8fD15DaAB50bCc456F40e9355CE6519")
-
-btc_aggregator = convert.to_address("0x6135b13325bfC4B00278B4abC5e20bbce2D6580e")
+MIN_DELAY = 2
+host = convert.to_address("0xEB796bdb90fFA0f28255275e16936D25d3418603")
+cfa = convert.to_address("0x49e565Ed1bdc17F3d220f72DF0857C26FA83F873")
+ida = convert.to_address("0x804348D4960a61f2d5F9ce9103027A3E849E09b8")
+DAI = convert.to_address("0x001B3B4d0F3714Ca98ba10F6042DaEbF0B1B7b6F")
+fDaix = convert.to_address("0x06577b0B09e69148A45b866a0dE6643b6caC40Af")
+btc_aggregator = convert.to_address("0x007A22900a3B98143368Bd5906f8E17e9867581b")
+lending_pool = convert.to_address("0x178113104fEcbcD7fF8669a0150721e231F0FD4B")
+aaveToken = convert.to_address("0x639cB7b21ee2161DF9c882483C9D55c90c20Ca3e")
+eth_aggregator = convert.to_address("0x0715A7794a1dc8e42615F059dD6e406A6594651A")
+matic_aggregator = convert.to_address("0xd0D5e3DB44DE05E9F294BB0a3bEEaF030DE24Ada")
 
 account = get_account()
 
-link = interface.LinkTokenInterface("0xa36085F69e2889c224210F603D836748e7dC0088")
+link = interface.LinkTokenInterface("0x326C977E6efc84E512bB9C30f76E30c160eD06FB")
 dai = interface.IERC20(DAI)
 def deploy_fatory():
     factory_contract = (
-        BenevolentMoonFactory.deploy({"from": account}, publish_source=True)
+        BenevolentMoonFactory.deploy({"from": account})
     if len(BenevolentMoonFactory) <=0
     else BenevolentMoonFactory[-1]
     )
@@ -52,14 +60,15 @@ def deploy_handler():
     )
 
 def deploy_Daily_contracts(asset, salt):
-    bytecode1 = DailyRocket[-1].getBytecode(
+    bytecode1 = BenevolentMoonFactory[-1].getBytecode(
         1,
         convert.to_string(asset),
-        btc_aggregator,
-        money_handler
+        eth_aggregator,
+        MoneyHandler[-1].address,
+        1648771200 #midnight utc
         
     )
-    tx = BenevolentMoonFactory[-1].deployDailyRoket(
+    tx = BenevolentMoonFactory[-1].deployDailyRocket(
         bytecode1,
         salt,
         asset,
@@ -68,11 +77,12 @@ def deploy_Daily_contracts(asset, salt):
     tx.wait(1)
 
 def deploy_Moon_contract(asset, salt):
-    bytecode = MoonSquares[-1].getBytecode(
+    bytecode = BenevolentMoonFactory[-1].getBytecode(
         2,
         convert.to_string(asset),
-        btc_aggregator,
-        money_handler
+        eth_aggregator,
+        MoneyHandler[-1].address,
+        1648771200
     )
     tx = BenevolentMoonFactory[-1].deployMoonSquares(
         bytecode,
@@ -88,7 +98,7 @@ def daily_rokecket():
 
     link.transfer(
         drBTC.address,
-        "10 ether",
+        "1 ether",
         {"from": account}
     )
 
@@ -100,11 +110,82 @@ def moonsquares():
 
     link.transfer(
         msBTC.address,
-        "10 ether",
+        "1 ether",
         {"from": account}
     )
 
     print(msBTC.getTime())
+
+def deploy_governance():
+    governance_token = (
+        BMSGToken.deploy(
+            fDaix,
+            host,
+            ida,
+            {"from": account},
+            publish_source=config["networks"][network.show_active()].get(
+                "verify", False
+            ),
+        )
+        if len(BMSGToken) <= 0
+        else BMSGToken[-1]
+    )
+    daoAddress = governance_token.address
+    #governance_token.delegate(account, {"from": account})
+    print(f"Checkpoints: {governance_token.numCheckpoints(account)}")
+    governance_time_lock = (
+        GovernanceTimeLock.deploy(
+            MIN_DELAY,
+            [],
+            [],
+            {"from": account},
+            publish_source=config["networks"][network.show_active()].get(
+                "verify", True
+            ),
+        )
+        if len(GovernanceTimeLock) <= 0
+        else GovernanceTimeLock[-1]
+    )
+    governor = (
+        MyGovernor.deploy(
+            governance_token.address,
+            governance_time_lock.address,
+            #QUORUM_PERCENTAGE,
+            #VOTING_PERIOD,
+            #VOTING_DELAY,
+            {"from": account},
+            publish_source=config["networks"][network.show_active()].get("verify", True),
+        )
+        if len(MyGovernor) <= 0
+        else MyGovernor[-1]
+    )
+    # Now, we set the roles...
+    # Multicall would be great here ;)
+    proposer_role = governance_time_lock.PROPOSER_ROLE()
+    executor_role = governance_time_lock.EXECUTOR_ROLE()
+    timelock_admin_role = governance_time_lock.TIMELOCK_ADMIN_ROLE()
+    governance_time_lock.grantRole(proposer_role, governor, {"from": account})
+    governance_time_lock.grantRole(
+        executor_role, constants.ADDRESS_ZERO, {"from": account}
+    )
+    tx = governance_time_lock.revokeRole(
+        timelock_admin_role, account, {"from": account}
+    )
+    tx.wait(1)
+    drAddress = (
+        RedirectAll.deploy(
+            host,
+            cfa,
+            fDaix,
+            BMSGToken[-1].address,
+            MoneyHandler[-1].address,
+            {"from": account},
+            #publish_source=True
+        )
+        if len(RedirectAll) <= 0
+        else RedirectAll[-1]
+    )
+
 
 def daily_transactions(index):
 
@@ -154,11 +235,14 @@ def send_transactions():
 def main():
     deploy_handler()
     deploy_fatory()
-    deploy_Daily_contracts("BTC", 132)
-    deploy_Moon_contract("BTC", 256)
-    daily_rokecket()
-    moonsquares()
-    send_transactions()
+    deploy_Daily_contracts("ETH", 600)
+    deploy_Moon_contract("ETH", 742)
+    #deploy_Daily_contracts("MATIC", 194)
+    #deploy_Moon_contract("MATIC", 277)
+
+    #daily_rokecket()
+    #moonsquares()
+    #send_transactions()
     
     
     

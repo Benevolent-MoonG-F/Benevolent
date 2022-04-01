@@ -66,7 +66,8 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
     constructor(
         string memory _asset,
         AggregatorV3Interface agg,
-        IHandler _handler
+        IHandler _handler,
+        uint256 midnight_
         )
     {
         assetName = _asset;
@@ -74,7 +75,7 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
         handler = _handler;
         contractStartTime = getTime();
         dayCount = 0;
-        dayCloseTime[0] = 1646611200;
+        dayCloseTime[0] = midnight_;
     }
 
 
