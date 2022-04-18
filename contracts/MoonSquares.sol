@@ -13,6 +13,8 @@ import "../interfaces/DataTypes.sol";
 import "../interfaces/ILendingPoolAddressesProvider.sol";
 import "../interfaces/ILendingPool.sol";
 
+import {IFactory} from "../interfaces/IFactory.sol";
+
 import {IERC20} from "../interfaces/IERC20.sol";
 
 import "../interfaces/IRedirect.sol";
@@ -76,13 +78,15 @@ contract MoonSquares is KeeperCompatibleInterface, Ownable {
     constructor(
         string memory _asset,
         AggregatorV3Interface feed_,
-        IHandler handler_
+        IHandler handler_,
+        address factory_
     ) {
         assetName = _asset;
         priceFeed = feed_;
         handler = handler_;
         coinRound = 1;
         roundInfo[0].winningTime = block.timestamp;
+        IFactory(factory_).addMSaddress(_asset, address(this));
     }
 
     function _updateStorage(

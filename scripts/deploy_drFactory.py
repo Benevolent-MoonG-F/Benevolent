@@ -59,13 +59,13 @@ def deploy_handler():
         else MoneyHandler[-1]
     )
 
-def deploy_Daily_contracts(asset, salt):
+def deploy_Daily_contracts(asset, agg, salt):
     bytecode1 = BenevolentMoonFactory[-1].getBytecode(
         1,
         convert.to_string(asset),
-        eth_aggregator,
+        agg,
         MoneyHandler[-1].address,
-        1648771200 #midnight utc
+        1652918400 #midnight utc
         
     )
     tx = BenevolentMoonFactory[-1].deployDailyRocket(
@@ -76,13 +76,13 @@ def deploy_Daily_contracts(asset, salt):
     )
     tx.wait(1)
 
-def deploy_Moon_contract(asset, salt):
+def deploy_Moon_contract(asset, agg, salt):
     bytecode = BenevolentMoonFactory[-1].getBytecode(
         2,
         convert.to_string(asset),
-        eth_aggregator,
+        agg,
         MoneyHandler[-1].address,
-        1648771200
+        1652918400
     )
     tx = BenevolentMoonFactory[-1].deployMoonSquares(
         bytecode,
@@ -188,8 +188,7 @@ def deploy_governance():
 
 
 def daily_transactions(index):
-
-    address = DailyRocket[-1].getDRAddress("BTC")
+    address = BenevolentMoonFactory[-1].getDRAddress("BTC")
     drBTC = DailyRocket.at(address)
     if index ==1:
         account1 = accounts.add(config["wallets"]["from_test1"])
@@ -208,7 +207,7 @@ def daily_transactions(index):
 
 def moon_transactions(index):
 
-    address = DailyRocket[-1].getMSAddress("BTC")
+    address = BenevolentMoonFactory[-1].getMSAddress("BTC")
     msBTC = MoonSquares.at(address)
     if index ==1:
         account1 = accounts.add(config["wallets"]["from_test1"])
@@ -235,11 +234,10 @@ def send_transactions():
 def main():
     deploy_handler()
     deploy_fatory()
-    deploy_Daily_contracts("ETH", 600)
-    deploy_Moon_contract("ETH", 742)
-    #deploy_Daily_contracts("MATIC", 194)
-    #deploy_Moon_contract("MATIC", 277)
-
+    deploy_Daily_contracts("ETH", eth_aggregator, 600)
+    deploy_Moon_contract("ETH", eth_aggregator, 742)
+    deploy_Daily_contracts("MATIC", matic_aggregator, 194)
+    deploy_Moon_contract("MATIC",matic_aggregator, 277)
     #daily_rokecket()
     #moonsquares()
     #send_transactions()

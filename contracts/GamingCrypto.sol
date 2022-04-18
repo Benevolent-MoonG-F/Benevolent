@@ -12,19 +12,29 @@ contract BenevolentMoonFactory is Ownable {
     mapping(string => address) private _assetDRAddress;
     mapping(string => address) private _assetMSAddress;
 
-    event DaliyRocketDeployed(address indexed dailyRocket_, string _asset);
-    event MoonSquaresDeployed(address indexed moonSquare_, string _asset);
+    //event DaliyRocketDeployed(address indexed dailyRocket_, string _asset);
+    //event MoonSquaresDeployed(address indexed moonSquare_, string _asset);
 
     function getMSAddress(
         string memory asset_
     ) public view returns(address){
         return _assetMSAddress[asset_];
     }
+
+    function addMSaddress(string memory asset_, address contract_) external {
+        _assetMSAddress[asset_] = contract_;
+    }
+
+    function addDRaddress(string memory asset_, address contract_) external {
+        _assetDRAddress[asset_] = contract_;
+    }
     function getDRAddress(
         string memory asset_
     ) public view returns(address){
         return _assetDRAddress[asset_];
     }
+
+/*
     function getBytecode(
         uint _contract,
         string memory _asset,
@@ -83,7 +93,7 @@ contract BenevolentMoonFactory is Ownable {
         }
         _assetDRAddress[name_] = addr;
 
-
+        DailyRocket(addr).transferOwnership(msg.sender);
         emit DaliyRocketDeployed(addr, name_);
     }
 
@@ -108,7 +118,9 @@ contract BenevolentMoonFactory is Ownable {
             }
         }
         _assetMSAddress[name_] = addr1;
+        MoonSquares(addr1).transferOwnership(msg.sender);
 
         emit MoonSquaresDeployed(addr1, name_);
     }
+*/
 }

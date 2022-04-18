@@ -14,7 +14,8 @@ from brownie import (
     convert,
     accounts,
     chain,
-    network
+    network,
+    BenevolentMoonFactory
 )
 from scripts.helpful_scripts import get_account
 from web3 import Web3, constants
@@ -55,6 +56,13 @@ def moonsquare(asset, agg):
     link = interface.LinkTokenInterface("0x326C977E6efc84E512bB9C30f76E30c160eD06FB")# 0xa36085F69e2889c224210F603D836748e7dC0088
     account = get_account()
     print("deploying moonsquare contract..")
+
+    factory_contract = (
+        BenevolentMoonFactory.deploy({"from": account})
+    if len(BenevolentMoonFactory) <=0
+    else BenevolentMoonFactory[-1]
+    )
+
     handler = (
         MoneyHandler.deploy(
             host,
@@ -72,6 +80,7 @@ def moonsquare(asset, agg):
             asset,
             agg,
             hander_address,
+            factory_contract.address,
             {"from": account},
             #publish_source=True
         )
@@ -101,6 +110,8 @@ def moonsquare(asset, agg):
             asset,
             agg,
             hander_address,
+            1650412800,
+            factory_contract.address,
             {"from": account},
             #publish_source=True
         )
@@ -194,7 +205,7 @@ def moonsquare(asset, agg):
             account1 = accounts.add(config["wallets"]["from_test2"])
         elif index ==3:
             account1 = accounts.add(config["wallets"]["from_test3"])
-        dai.transfer(account1, 1000000000000000000000, {"from": account})
+        #dai.transfer(account1, 1000000000000000000000, {"from": account})
         i = 1
         while i <= 4:
             time = chain.time()

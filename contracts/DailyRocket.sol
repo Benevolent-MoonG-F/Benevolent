@@ -14,6 +14,9 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 import "../interfaces/IHandler.sol";
 
+import {IFactory} from "../interfaces/IFactory.sol";
+
+
 contract DailyRocket is Ownable, KeeperCompatibleInterface {
 
     ILendingPoolAddressesProvider private provider = ILendingPoolAddressesProvider(
@@ -67,7 +70,8 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
         string memory _asset,
         AggregatorV3Interface agg,
         IHandler _handler,
-        uint256 midnight_
+        uint256 midnight_,
+        address factory_
         )
     {
         assetName = _asset;
@@ -76,6 +80,7 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
         contractStartTime = getTime();
         dayCount = 0;
         dayCloseTime[0] = midnight_;
+        IFactory(factory_).addDRaddress(_asset, address(this));
     }
 
 
