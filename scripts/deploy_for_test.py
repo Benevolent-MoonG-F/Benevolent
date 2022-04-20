@@ -43,10 +43,13 @@ DAI_k = convert.to_address("0xFf795577d9AC8bD7D90Ee22b6C1703490b6512FD")
 btc_aggregator_k = convert.to_address("0x6135b13325bfC4B00278B4abC5e20bbce2D6580e")
 lending_pool_k = convert.to_address("0x88757f2f99175387aB4C6a4b3067c77A695b0349")
 _aaveToken_k = convert.to_address("0xdCf0aF9e59C002FA3AA091a46196b37530FD48a8")
+eth_aggregator = convert.to_address("0x0715A7794a1dc8e42615F059dD6e406A6594651A")
+matic_aggregator = convert.to_address("0xd0D5e3DB44DE05E9F294BB0a3bEEaF030DE24Ada")
+
 MIN_DELAY = 1
 
 def main():
-    moonsquare("BTC", btc_aggregator)
+    moonsquare("MATIC", matic_aggregator)
 
 
 
@@ -84,8 +87,8 @@ def moonsquare(asset, agg):
             {"from": account},
             #publish_source=True
         )
-        if len(MoonSquares) <= 0
-        else MoonSquares[-1]
+        #if len(MoonSquares) <= 0
+        #else MoonSquares[-1]
     )
     boxAddress = box.address
     handler.addContract(boxAddress, {"from": account})
@@ -99,7 +102,7 @@ def moonsquare(asset, agg):
     print(box.getTime())
     print("setting moon Price...")
     box.setMoonPrice(
-        50000,
+        2,
         {"from": account}
     )
 #
@@ -115,8 +118,8 @@ def moonsquare(asset, agg):
             {"from": account},
             #publish_source=True
         )
-        if len(DailyRocket) <= 0
-        else DailyRocket[-1]
+        #if len(DailyRocket) <= 0
+        #else DailyRocket[-1]
     )
     handler.addContract(dr.address, {"from": account})
     print("tranfering link to DR contract...")
@@ -196,31 +199,31 @@ def moonsquare(asset, agg):
     #    else RedirectAll[-1]
     #)
 
-
-
-    def moon_transactions(index):
-        if index ==1:
-            account1 = accounts.add(config["wallets"]["from_test1"])
-        if index ==2:
-            account1 = accounts.add(config["wallets"]["from_test2"])
-        elif index ==3:
-            account1 = accounts.add(config["wallets"]["from_test3"])
-        #dai.transfer(account1, 1000000000000000000000, {"from": account})
-        i = 1
-        while i <= 4:
-            time = chain.time()
-            prediction = randrange(time, (time + 84000))
-            dai.approve(boxAddress, 10000000000000000000, {"from":account1})
-            box.predictAsset(prediction, {"from": account1})
-            price = dr.getPrice()
-            prediction = randrange(price, ((price + 9000) or (price - 9000)))
-            dai.approve(dr.address, "10 ether", {"from":account1})
-            dr.predictClosePrice(prediction, {"from": account1})
-            i+=1
-    i = 1
-    while i <= 3:
-        moon_transactions(i)
-        i+=1
+#
+#
+#    def moon_transactions(index):
+#        if index ==1:
+#            account1 = accounts.add(config["wallets"]["from_test1"])
+#        if index ==2:
+#            account1 = accounts.add(config["wallets"]["from_test2"])
+#        elif index ==3:
+#            account1 = accounts.add(config["wallets"]["from_test3"])
+#        #dai.transfer(account1, 1000000000000000000000, {"from": account})
+#        i = 1
+#        while i <= 4:
+#            time = chain.time()
+#            prediction = randrange(time, (time + 84000))
+#            dai.approve(boxAddress, 10000000000000000000, {"from":account1})
+#            box.predictAsset(prediction, {"from": account1})
+#            price = dr.getPrice()
+#            prediction = randrange(price, ((price + 9000) or (price - 9000)))
+#            dai.approve(dr.address, "10 ether", {"from":account1})
+#            dr.predictClosePrice(prediction, {"from": account1})
+#            i+=1
+#    i = 1
+#    while i <= 3:
+#        moon_transactions(i)
+#        i+=1
     
        #tx = box.transferOwnership(GovernanceTimeLock[-1], {"from": account})
     #tx.wait(1)
