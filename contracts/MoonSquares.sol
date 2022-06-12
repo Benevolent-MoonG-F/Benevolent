@@ -237,7 +237,7 @@ contract MoonSquares is KeeperCompatibleInterface, Ownable {
     //gets the price of the asset denoted by market
     function getPrice() public view returns(int256){
         (,int256 answer,,,) = priceFeed.latestRoundData();
-        return int256(answer/100000000);
+        return int256(answer/1000000);
     }
 
     //gets the current time

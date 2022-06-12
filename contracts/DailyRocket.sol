@@ -191,7 +191,7 @@ contract DailyRocket is Ownable, KeeperCompatibleInterface {
 
     function getPrice() public view returns(int){
         (,int answer,,,) = priceFeed.latestRoundData();
-         return int(answer/100000000);
+         return int(answer/1000000);
     }
 
 
