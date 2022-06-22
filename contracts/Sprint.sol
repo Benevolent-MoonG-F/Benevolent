@@ -6,10 +6,23 @@ import {IERC20} from "../interfaces/IERC20.sol";
 import {IAPI} from "../interfaces/IAPI.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@chainlink/contracts/src/v0.8/KeeperCompatible.sol";
+import "../interfaces/DataTypes.sol";
+import "../interfaces/ILendingPoolAddressesProvider.sol";
+import "../interfaces/ILendingPool.sol";
+import "../interfaces/IHandler.sol";
 
 error Transfer__Failed();
 
 contract Sprint69 is Ownable, KeeperCompatibleInterface {
+    ILendingPoolAddressesProvider private provider =
+        ILendingPoolAddressesProvider(
+            address(0x178113104fEcbcD7fF8669a0150721e231F0FD4B)
+        );
+    ILendingPool private lendingPool = ILendingPool(provider.getLendingPool());
+
+    //ISwapRouter public immutable swapRouter;
+    //uint24 public constant poolFee = 3000;
+    IHandler public handler;
     IAPI private apiContract;
     IERC20 public paymentToken;
 
@@ -26,6 +39,10 @@ contract Sprint69 is Ownable, KeeperCompatibleInterface {
     // Total Staked
     uint256 public s_totalStaked;
 
+    bool private _setWinners;
+
+    bool private _distributeToWinners;
+
     struct Round {
         uint256 startTime;
         uint256 endTime;
@@ -33,15 +50,25 @@ contract Sprint69 is Ownable, KeeperCompatibleInterface {
         uint256 totalStaked;
         uint256 totalPlayers;
     }
+
+    mapping(uint256 => address[]) roundAddresses;
+
     mapping(uint256 => uint8[]) public s_roundWinningOrder;
 
     mapping(uint256 => address[]) public s_roundWinners;
 
     mapping(uint256 => mapping(address => uint8[])) public s_addressPicks;
 
-    constructor(address _paymentToken, address _api) {
+    event DepositMade(address indexed user, uint8[] picks);
+
+    constructor(
+        address _paymentToken,
+        address _api,
+        address _handler
+    ) {
         paymentToken = IERC20(_paymentToken);
         apiContract = IAPI(_api);
+        handler = IHandler(_handler);
         round = 1;
         s_roundInfo[1] = Round(
             block.timestamp,
@@ -62,8 +89,9 @@ contract Sprint69 is Ownable, KeeperCompatibleInterface {
     }
 
     function selectAssets(uint8[] memory _assets) external {
+        uint256 _round = round;
         require(
-            block.timestamp <= s_roundInfo[round].pickEndTime,
+            block.timestamp < (s_roundInfo[round].pickEndTime - 12 hours),
             "pick duration ended"
         );
         bool success = paymentToken.transferFrom(
@@ -74,9 +102,14 @@ contract Sprint69 is Ownable, KeeperCompatibleInterface {
         if (!success) {
             revert Transfer__Failed();
         }
-        s_addressPicks[round][msg.sender] = _assets;
-        s_roundInfo[round].totalPlayers += 1;
-        s_roundInfo[round].totalStaked += 9 ether;
+        aaveDeposit(10 ether);
+        handler.accountForSprint();
+        s_addressPicks[_round][msg.sender] = _assets;
+        s_roundInfo[_round].totalPlayers += 1;
+        s_roundInfo[_round].totalStaked += 9 ether;
+        roundAddresses[_round].push(msg.sender);
+
+        emit DepositMade(msg.sender, _assets);
     }
 
     function setWinningOrder() private {
@@ -107,50 +140,86 @@ contract Sprint69 is Ownable, KeeperCompatibleInterface {
         }
     }
 
+    function aaveDeposit(uint256 amount) private {
+        paymentToken.approve(address(lendingPool), amount);
+        lendingPool.deposit(address(paymentToken), amount, address(handler), 0);
+    }
+
     function checkUpkeep(
         bytes calldata /* checkData */
     )
         external
         view
         override
-        returns (
-            bool upkeepNeeded,
-            bytes memory /* performData */
-        )
+        returns (bool upkeepNeeded, bytes memory performData)
     {
-        upkeepNeeded = (block.timestamp - lastTimeStamp) > roundDuration;
+        if ((block.timestamp - lastTimeStamp) > roundDuration) {
+            upkeepNeeded = true;
+            performData = abi.encodePacked(uint256(0));
+        }
+        if (_setWinners == true) {
+            upkeepNeeded = true;
+            performData = abi.encodePacked(uint256(1));
+        }
+        if (_distributeToWinners == true) {
+            upkeepNeeded = true;
+            performData = abi.encodePacked(uint256(2));
+        }
         // We don't use the checkData in this example. The checkData is defined when the Upkeep was registered.
     }
 
-    function performUpkeep(
-        bytes calldata /* performData */
-    ) external override {
-        if ((block.timestamp - lastTimeStamp) > roundDuration) {
+    function withdrawFromAave() private {
+        lendingPool.withdraw(
+            address(paymentToken),
+            s_roundInfo[round].totalStaked,
+            address(this)
+        );
+    }
+
+    function performUpkeep(bytes calldata performData) external override {
+        uint256 value = abi.decode(performData, (uint256));
+        if (value == 0) {
             lastTimeStamp = block.timestamp;
             apiContract.requestMultipleParameters();
             setWinningOrder();
+            _setWinners = true;
+        }
+        if (value == 1) {
+            _setWinners = false;
+            setWinners(round);
+            _distributeToWinners = true;
+        }
+        if (value == 2) {
+            _distributeToWinners = false;
+            withdrawFromAave();
             distributeWinnigs();
         }
     }
 
     function distributeWinnigs() private {
-        uint256 _round = round - 1;
-        uint256 len = s_roundWinners[_round].length;
-        Round storage roundInfo = s_roundInfo[_round];
-        if (len == 1) {
-            paymentToken.transfer(
-                s_roundWinners[_round][0],
-                roundInfo.totalStaked
-            );
-        }
-        if (len > 1) {
-            for (uint256 i = 0; i < len; i++) {
+        uint256 _round = round;
+        if (s_roundWinners[_round].length != 0) {
+            uint256 len = s_roundWinners[_round].length;
+            Round storage roundInfo = s_roundInfo[_round];
+            if (len == 1) {
                 paymentToken.transfer(
-                    s_roundWinners[_round][i],
-                    (roundInfo.totalStaked / len)
+                    s_roundWinners[_round][0],
+                    roundInfo.totalStaked
                 );
             }
+            if (len > 1) {
+                for (uint256 i = 0; i < len; ) {
+                    paymentToken.transfer(
+                        s_roundWinners[_round][i],
+                        (roundInfo.totalStaked / len)
+                    );
+                    unchecked {
+                        i++;
+                    }
+                }
+            }
         }
+        round += 1;
     }
 
     function replaceAsset(
@@ -164,27 +233,31 @@ contract Sprint69 is Ownable, KeeperCompatibleInterface {
         s_assetIdentifier[_id] = _symbol;
     }
 
-    function claimWinning(uint256 _round) external {
-        require(
-            s_addressPicks[_round][msg.sender][0] ==
-                s_roundWinningOrder[_round][0]
-        );
-        require(
-            s_addressPicks[_round][msg.sender][2] ==
-                s_roundWinningOrder[_round][2]
-        );
-        require(
-            s_addressPicks[_round][msg.sender][3] ==
-                s_roundWinningOrder[_round][3]
-        );
-        require(
-            s_addressPicks[_round][msg.sender][4] ==
-                s_roundWinningOrder[_round][4]
-        );
-        require(
-            s_addressPicks[_round][msg.sender][5] ==
-                s_roundWinningOrder[_round][5]
-        );
-        s_roundWinners[_round].push(msg.sender);
+    function setWinners(uint256 _round) internal {
+        uint8[] storage winningOder = s_roundWinningOrder[_round];
+        uint256 numberOfPlayers = roundAddresses[_round].length;
+        address[] storage allUsers = roundAddresses[_round];
+        for (uint256 i = 0; i < numberOfPlayers; ) {
+            address playerAddress = allUsers[i];
+            uint256 _winLength = winningOder.length;
+            uint256 matchingNumbers;
+            uint8[] storage userOrder = s_addressPicks[_round][playerAddress];
+            for (uint256 p = 0; p < _winLength; ) {
+                if (userOrder[p] == winningOder[p]) {
+                    matchingNumbers += 1;
+                } else {
+                    break;
+                }
+                unchecked {
+                    p++;
+                }
+            }
+            unchecked {
+                i++;
+            }
+            if (matchingNumbers == 6) {
+                s_roundWinners[_round].push(playerAddress);
+            }
+        }
     }
 }

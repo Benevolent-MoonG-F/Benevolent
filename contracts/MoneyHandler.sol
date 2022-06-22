@@ -17,31 +17,23 @@ import {IERC20} from "../interfaces/IERC20.sol";
 import "../interfaces/IRedirect.sol";
 import "../interfaces/IGovernanceToken.sol";
 
-import {
-    ISuperfluid,
-    ISuperToken,
-    ISuperApp,
-    ISuperAgreement,
-    SuperAppDefinitions
-} from "@superfluid/interfaces/superfluid/ISuperfluid.sol";
+import {ISuperfluid, ISuperToken, ISuperApp, ISuperAgreement, SuperAppDefinitions} from "@superfluid/superfluid/Superfluid.sol";
 
-import {
-    IConstantFlowAgreementV1
-} from "@superfluid/interfaces/agreements/IConstantFlowAgreementV1.sol";
+import {IConstantFlowAgreementV1} from "@superfluid/agreements/ConstantFlowAgreementV1.sol";
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract MoneyHandler is Ownable, KeeperCompatibleInterface {
     ISuperfluid private _host; // host
-    IConstantFlowAgreementV1 private _cfa; // the stored constant flow agreement class address 
-    
+    IConstantFlowAgreementV1 private _cfa; // the stored constant flow agreement class address
+
     //the Super token used to pay for option premium (sent directly to the NFT and redirected to owner of the NFT)
     ISuperToken private _acceptedToken; // accepted token, 0x43F54B13A0b17F67E61C9f0e41C3348B3a2BDa09
 
-
-    ILendingPoolAddressesProvider private provider = ILendingPoolAddressesProvider(
-        address(0x178113104fEcbcD7fF8669a0150721e231F0FD4B)
-    );
+    ILendingPoolAddressesProvider private provider =
+        ILendingPoolAddressesProvider(
+            address(0x178113104fEcbcD7fF8669a0150721e231F0FD4B)
+        );
     ILendingPool private lendingPool = ILendingPool(provider.getLendingPool());
     address private Dai;
 
@@ -49,12 +41,12 @@ contract MoneyHandler is Ownable, KeeperCompatibleInterface {
     IGovernanceToken private governanceToken;
 
     address private _aaveToken = 0x639cB7b21ee2161DF9c882483C9D55c90c20Ca3e;
-    
+
     address[] public contracts;
 
     uint128 public monthCount;
 
-    uint public payroundStartTime;
+    uint256 public payroundStartTime;
 
     uint256 public totalInIBA;
 
@@ -67,26 +59,28 @@ contract MoneyHandler is Ownable, KeeperCompatibleInterface {
         string link; //sends people to the charity's official site
     }
 
-    mapping (address => Charity) public presentCharities;
+    mapping(address => Charity) public presentCharities;
 
     string[] private charities;
     address[] public charityAddress;
-    
+
     mapping(uint128 => mapping(string => uint128)) public roundCharityVotes;
-    
+
     mapping(uint128 => address) public roundVoteResults;
 
     mapping(address => bool) private isAllowed;
 
-    event CharityThisMonth(address indexed charityAddress_, string indexed name_);
+    event CharityThisMonth(
+        address indexed charityAddress_,
+        string indexed name_
+    );
 
     constructor(
-        ISuperfluid host,//0xF0d7d1D47109bA426B9D8A3Cde1941327af1eea3
-        IConstantFlowAgreementV1 cfa,//0xECa8056809e7e8db04A8fF6e4E82cD889a46FE2F
-        ISuperToken acceptedToken,//0x43F54B13A0b17F67E61C9f0e41C3348B3a2BDa09
+        ISuperfluid host, //0xF0d7d1D47109bA426B9D8A3Cde1941327af1eea3
+        IConstantFlowAgreementV1 cfa, //0xECa8056809e7e8db04A8fF6e4E82cD889a46FE2F
+        ISuperToken acceptedToken, //0x43F54B13A0b17F67E61C9f0e41C3348B3a2BDa09
         address dai
-    ) 
-    {
+    ) {
         _host = host;
         _cfa = cfa;
         _acceptedToken = acceptedToken;
@@ -99,15 +93,13 @@ contract MoneyHandler is Ownable, KeeperCompatibleInterface {
         _acceptedToken.upgrade(amount);
     }
 
-
-
     function updateFlow(int96 flowRate) private {
         _host.callAgreement(
             _cfa,
             abi.encodeWithSelector(
                 _cfa.updateFlow.selector,
                 _acceptedToken,
-                address(flowDistributer),//address to the distributer that sends funds to charity and Dao
+                address(flowDistributer), //address to the distributer that sends funds to charity and Dao
                 flowRate, //should be the total amount of Interest withdrawnfrom the IBA divided by the number of seconds in the withdrawal interval
                 new bytes(0) // placeholder
             ),
@@ -115,14 +107,13 @@ contract MoneyHandler is Ownable, KeeperCompatibleInterface {
         );
     }
 
-
     function createFlow(int96 flowRate) private {
         _host.callAgreement(
             _cfa,
             abi.encodeWithSelector(
                 _cfa.createFlow.selector,
                 _acceptedToken,
-                address(flowDistributer),//address to the distributer that sends funds to charity and Dao
+                address(flowDistributer), //address to the distributer that sends funds to charity and Dao
                 flowRate, //should be the total amount of Interest withdrawnfrom the IBA divided by the number of seconds in the withdrawal interval
                 new bytes(0) // placeholder
             ),
@@ -132,9 +123,12 @@ contract MoneyHandler is Ownable, KeeperCompatibleInterface {
 
     function checkUpkeep(
         bytes calldata /*checkData*/
-    ) external view override returns (
-        bool upkeepNeeded, bytes memory performData
-    ) {
+    )
+        external
+        view
+        override
+        returns (bool upkeepNeeded, bytes memory performData)
+    {
         upkeepNeeded = (block.timestamp >= (payroundStartTime + 30 days));
     }
 
@@ -145,11 +139,12 @@ contract MoneyHandler is Ownable, KeeperCompatibleInterface {
             setwinningCharity();
         }
     }
+
     function setwinningCharity() private {
         uint128 winning_votes = 0;
-        uint index = charities.length +1;
-        for (uint i =0; i < charities.length; i++) {
-            if (roundCharityVotes[monthCount][charities[i]] > winning_votes){
+        uint256 index = charities.length + 1;
+        for (uint256 i = 0; i < charities.length; i++) {
+            if (roundCharityVotes[monthCount][charities[i]] > winning_votes) {
                 winning_votes = roundCharityVotes[monthCount][charities[i]];
                 roundVoteResults[monthCount] = charityAddress[i];
                 index = i;
@@ -178,49 +173,49 @@ contract MoneyHandler is Ownable, KeeperCompatibleInterface {
     function distributeToMembers() private {
         require(monthCount != 0);
         uint256 cashAmount = _acceptedToken.balanceOf(address(governanceToken));
-        governanceToken.distribute(
-            cashAmount
-        );
+        governanceToken.distribute(cashAmount);
     }
 
-    function withdrawRoundFunds(uint amount_) external {
+    function withdrawRoundFunds(uint256 amount_) external {
         require(isAllowed[msg.sender] == true);
-        lendingPool.withdraw(
-            Dai,
-            amount_,
-            msg.sender
-        );
+        lendingPool.withdraw(Dai, amount_, msg.sender);
         totalPaid += amount_;
     }
 
     function withdrawInterest() private {
-        uint availableBalance = IERC20(_aaveToken).balanceOf(address(this)) - totalInIBA;
-        uint interest = (availableBalance *10)/100;
-        lendingPool.withdraw(
-            Dai,
-            interest,
-            address(this)
-        );
+        uint256 availableBalance = IERC20(_aaveToken).balanceOf(address(this)) -
+            totalInIBA;
+        uint256 interest = (availableBalance * 10) / 100;
+        lendingPool.withdraw(Dai, interest, address(this));
         upgradeToken(interest);
         int256 toInt = int256(interest);
-        (,int96 outflowRate,,) = _cfa.getFlow(_acceptedToken, address(this), address(flowDistributer));
+        (, int96 outflowRate, , ) = _cfa.getFlow(
+            _acceptedToken,
+            address(this),
+            address(flowDistributer)
+        );
         int96 expectedFR = int96(toInt / 30 days);
         if (outflowRate == 0) {
             createFlow(expectedFR);
-        }
-        else if (outflowRate < expectedFR) {
+        } else if (outflowRate < expectedFR) {
             updateFlow(expectedFR);
         }
         monthCount += 1;
     }
 
-        //puts the 10% from daily rocket into account
+    //puts the 10% from daily rocket into account
     function acountForDRfnds() external {
         require(isAllowed[msg.sender] == true);
-        totalInIBA += 9000000000000000000;
+        totalInIBA += 1 ether;
     }
+
+    function accountForSprint() external {
+        require(isAllowed[msg.sender] == true);
+        totalInIBA += 10 ether;
+    }
+
     //adds contracts that call core funtions
-    function addContract(address _conAddress) external onlyOwner{
+    function addContract(address _conAddress) external onlyOwner {
         isAllowed[_conAddress] = true;
     }
 
@@ -228,14 +223,16 @@ contract MoneyHandler is Ownable, KeeperCompatibleInterface {
     function addFlowDistributor(IRedirect addr) external onlyOwner {
         flowDistributer = addr;
     }
+
     function addGovernanceToken(IGovernanceToken _gtAdress) external onlyOwner {
         governanceToken = _gtAdress;
     }
 
-    function getCharity(uint index) public view returns(string memory ) {
+    function getCharity(uint256 index) public view returns (string memory) {
         return charities[index];
     }
-    function getNumberOfCharities() public view returns(uint) {
+
+    function getNumberOfCharities() public view returns (uint256) {
         return charities.length;
     }
 }
